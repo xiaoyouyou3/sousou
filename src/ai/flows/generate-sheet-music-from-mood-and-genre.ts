@@ -57,7 +57,7 @@ const prompt = ai.definePrompt({
   {{#if gt totalSegments 1}}
     {{#ifEquals segmentIndex 0}}
     This is the INTRODUCTORY part of the song. Create an engaging opening.
-    {{else}}{{#ifEquals segmentIndex (sub totalSegments 1)}}
+    {{else}}{{#ifEquals segmentIndex (subtract totalSegments 1)}}
     This is the FINAL part of the song. Create a resolving and conclusive ending.
     {{else}}
     This is a MIDDLE part of the song. Continue the musical idea from the previous part and build on it.
