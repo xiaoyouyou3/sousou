@@ -68,7 +68,7 @@ export default function MusicPlayer({ sheetMusic }: { sheetMusic: string }) {
   const totalDuration = useMemo(() => {
     if (notes.length === 0) return Tone.Time(0);
     const lastNote = notes[notes.length - 1];
-    return Tone.Time(lastNote.time) + Tone.Time(lastNote.duration);
+    return Tone.Time(lastNote.time).toSeconds() + Tone.Time(lastNote.duration).toSeconds();
   }, [notes]);
 
   useEffect(() => {
@@ -159,7 +159,7 @@ export default function MusicPlayer({ sheetMusic }: { sheetMusic: string }) {
 
               {/* Notes */}
               {notes.map((note, index) => {
-                const x = (Tone.Time(note.time).toSeconds() / totalDuration.toSeconds()) * (viewWidth - 40) + 20;
+                const x = (Tone.Time(note.time).toSeconds() / totalDuration) * (viewWidth - 40) + 20;
                 const y = noteToY(note.note);
                 const isCurrent = index === currentNoteIndex;
 
