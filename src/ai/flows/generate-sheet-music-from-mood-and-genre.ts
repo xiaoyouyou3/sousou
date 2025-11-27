@@ -57,7 +57,7 @@ const prompt = ai.definePrompt({
   {{#if gt totalSegments 1}}
     {{#ifEquals segmentIndex 0}}
     This is the INTRODUCTORY part of the song. Create an engaging opening.
-    {{else}}{{#ifEquals segmentIndex (subtract totalSegments 1)}}
+    {{else}}{{#ifEquals segmentIndex (math totalSegments '-' 1)}}
     This is the FINAL part of the song. Create a resolving and conclusive ending.
     {{else}}
     This is a MIDDLE part of the song. Continue the musical idea from the previous part and build on it.
@@ -74,7 +74,7 @@ const prompt = ai.definePrompt({
   - For 'electronic', use instruments like Synth, Bass, and Arpeggiator.
   - For 'ambient', use instruments like Pad, Synth, and FX.
   - For 'lo-fi', use instruments like Electric Piano, Bass, and Drums with a relaxed feel.
-  - For 'sci-fi', use futuristic sounds like Synth, Pad, and Arpeggiator.
+  - For 'sci-fi', use instruments like Synth, Pad, and Arpeggiator.
 
   Return the title and sheet music as a valid JSON object. The JSON must contain:
   1. A 'title' key with a creative song title.
