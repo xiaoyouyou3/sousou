@@ -2,11 +2,12 @@
 
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import * as Tone from 'tone';
-import { Play, Pause, StopCircle, RefreshCw, Music2 } from 'lucide-react';
+import { Play, Pause, StopCircle, RefreshCw, Music2, Timer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '../ui/badge';
+import { Progress } from '../ui/progress';
 
 type NoteEvent = {
   time: string;
@@ -24,17 +25,22 @@ interface MusicPlayerProps {
   parts: InstrumentPart[];
 }
 
-const STAFF_LINES = 5;
-const LINE_HEIGHT = 15;
-const STAFF_HEIGHT = (STAFF_LINES - 1) * LINE_HEIGHT;
+const formatTime = (seconds: number) => {
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = Math.floor(seconds % 60);
+  return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+};
 
 export default function MusicPlayer({ title, parts }: MusicPlayerProps) {
   const { toast } = useToast();
   const [isPlaying, setIsPlaying] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
-  
+  const [progress, setProgress] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
+
   const synths = useRef<Map<string, Tone.PolySynth>>(new Map());
   const toneParts = useRef<Tone.Part[]>([]);
+  const progressAnimationRef = useRef<number>();
 
   const validatedParts = useMemo<InstrumentPart[]>(() => {
     if (!Array.isArray(parts)) {
@@ -54,22 +60,67 @@ export default function MusicPlayer({ title, parts }: MusicPlayerProps) {
       }))
       .filter(part => part.notes.length > 0);
   }, [parts, toast]);
+  
+  const totalDuration = useMemo(() => {
+    if (validatedParts.length === 0) return 0;
+    let maxDuration = 0;
+    try {
+      validatedParts.forEach(part => {
+        part.notes.forEach(note => {
+          const endTime = Tone.Time(note.time).toSeconds() + Tone.Time(note.duration).toSeconds();
+          if (endTime > maxDuration) {
+            maxDuration = endTime;
+          }
+        });
+      });
+    } catch (e) {
+      console.error("Error calculating duration:", e);
+      return 60; // fallback
+    }
+    return maxDuration;
+  }, [validatedParts]);
 
   const instrumentNames = useMemo(() => validatedParts.map(p => p.instrument), [validatedParts]);
 
   const cleanupTone = useCallback(() => {
     if (Tone.Transport.state !== 'stopped') {
       Tone.Transport.stop();
-      Tone.Transport.cancel();
     }
+    Tone.Transport.cancel();
+    
     toneParts.current.forEach(p => p.dispose());
     synths.current.forEach(s => s.dispose());
     toneParts.current = [];
     synths.current.clear();
+    
+    if (progressAnimationRef.current) {
+        cancelAnimationFrame(progressAnimationRef.current);
+    }
+
     setIsInitialized(false);
     setIsPlaying(false);
+    setProgress(0);
+    setCurrentTime(0);
     console.log('Tone.js resources cleaned up.');
   }, []);
+  
+  const updateProgress = useCallback(() => {
+    if (totalDuration > 0 && Tone.Transport.state === 'started') {
+      const currentSeconds = Tone.Transport.seconds;
+      setCurrentTime(currentSeconds);
+      setProgress((currentSeconds / totalDuration) * 100);
+      progressAnimationRef.current = requestAnimationFrame(updateProgress);
+    } else {
+        if (Tone.Transport.state !== 'started') {
+             // Ensure progress is 100% if song finishes but not perfectly on time
+            if (currentTime > totalDuration * 0.95) {
+                setProgress(100);
+                setCurrentTime(totalDuration);
+            }
+        }
+    }
+  }, [totalDuration, currentTime]);
+
 
   const setupTone = useCallback(async () => {
     cleanupTone();
@@ -79,8 +130,7 @@ export default function MusicPlayer({ title, parts }: MusicPlayerProps) {
     console.log('AudioContext started');
     
     validatedParts.forEach(partData => {
-      let synth: Tone.PolySynth;
-      // 音割れを防ぐために各楽器の音量を調整
+      let synth: any;
       switch (partData.instrument.toLowerCase()) {
         case 'drums':
           synth = new Tone.PolySynth(Tone.MembraneSynth, {
@@ -88,7 +138,7 @@ export default function MusicPlayer({ title, parts }: MusicPlayerProps) {
             octaves: 10,
             oscillator: { type: 'sine' },
             envelope: { attack: 0.001, decay: 0.4, sustain: 0.01, release: 1.4, attackCurve: 'exponential' },
-            volume: -6 // ドラムの音量を下げる
+            volume: -10
           }).toDestination();
           break;
         case 'bass':
@@ -97,14 +147,14 @@ export default function MusicPlayer({ title, parts }: MusicPlayerProps) {
             envelope: { attack: 0.001, decay: 0.1, sustain: 0.4, release: 2 },
             filterEnvelope: { attack: 0.01, decay: 0.1, sustain: 0.8, release: 1.5, baseFrequency: 50, octaves: 4.4 },
             filter: { Q: 2, type: 'lowpass', rolloff: -24 },
-            volume: -8 // ベースの音量を下げる
+            volume: -12
           }).toDestination();
           break;
-        default: // Piano, Synth, Guitar etc.
+        default:
           synth = new Tone.PolySynth(Tone.Synth, {
             oscillator: { type: 'fmsquare' },
             envelope: { attack: 0.01, decay: 0.1, sustain: 0.3, release: 1 },
-            volume: -12 // その他の楽器の音量を下げる
+            volume: -16
           }).toDestination();
           break;
       }
@@ -121,59 +171,56 @@ export default function MusicPlayer({ title, parts }: MusicPlayerProps) {
       tonePart.loop = false;
       toneParts.current.push(tonePart);
     });
-
-    const onStop = () => setIsPlaying(false);
-    const onPause = () => setIsPlaying(false);
-    const onStart = () => setIsPlaying(true);
     
-    Tone.Transport.on('stop', onStop);
-    Tone.Transport.on('pause', onPause);
-    Tone.Transport.on('start', onStart);
+    Tone.Transport.on('stop', () => {
+      setIsPlaying(false);
+      setProgress(0);
+      setCurrentTime(0);
+      if (progressAnimationRef.current) {
+        cancelAnimationFrame(progressAnimationRef.current);
+      }
+    });
+
+    Tone.Transport.on('pause', () => {
+        setIsPlaying(false);
+        if (progressAnimationRef.current) {
+            cancelAnimationFrame(progressAnimationRef.current);
+        }
+    });
+
+    Tone.Transport.on('start', () => {
+        setIsPlaying(true);
+        progressAnimationRef.current = requestAnimationFrame(updateProgress);
+    });
+
+    Tone.Transport.schedule(time => {
+        Tone.Draw.schedule(() => {
+            setIsPlaying(false);
+        }, time);
+    }, totalDuration);
     
     setIsInitialized(true);
     console.log('Tone.js setup complete with', validatedParts.length, 'parts');
 
-    return () => {
-        Tone.Transport.off('stop', onStop);
-        Tone.Transport.off('pause', onPause);
-        Tone.Transport.off('start', onStart);
-    }
-  }, [validatedParts, cleanupTone]);
+  }, [validatedParts, cleanupTone, totalDuration, updateProgress]);
 
 
   useEffect(() => {
-    // This effect handles the complete re-initialization when the parts prop changes.
-    // It is responsible for setting up Tone.js for the new song.
-    let cleanup: (() => void) | undefined;
-    setupTone().then(cleanupFn => {
-        cleanup = cleanupFn;
-    });
+    setupTone();
+    return cleanupTone;
+  }, [parts, setupTone, cleanupTone]);
 
-    return () => {
-        if (cleanup) {
-            cleanup();
-        }
-        cleanupTone();
-    };
-  }, [parts, setupTone, cleanupTone]); // 'parts' is the key dependency. setupTone and cleanupTone are stable.
 
   const handlePlayPause = async () => {
-    // This function now only handles the play/pause logic, assuming setup is done.
-    if (!isInitialized) {
-       console.log('Setup not complete, please wait.');
-       toast({
-        title: "準備中...",
-        description: "音楽の再生準備をしています。もう一度お試しください。",
-      });
-      // Try to re-run setup just in case.
-      await setupTone();
-      return;
+    if (!isInitialized || Tone.context.state !== 'running') {
+      console.log('Audio context not running, starting...');
+      await Tone.start();
+      console.log('Audio context started.');
+       if (!isInitialized) {
+         await setupTone();
+       }
     }
     
-    if (Tone.context.state !== 'running') {
-      await Tone.start();
-    }
-
     if (Tone.Transport.state === 'started') {
       Tone.Transport.pause();
     } else {
@@ -188,14 +235,9 @@ export default function MusicPlayer({ title, parts }: MusicPlayerProps) {
 
   const handleRestart = async () => {
     if (!isInitialized) {
-      toast({
-        title: "準備中...",
-        description: "音楽の再生準備をしています。もう一度お試しください。",
-      });
-      return;
+      await setupTone();
     }
     Tone.Transport.stop();
-    // A small delay might help ensure stop is processed before start
     setTimeout(() => Tone.Transport.start(), 50);
   }
   
@@ -209,18 +251,34 @@ export default function MusicPlayer({ title, parts }: MusicPlayerProps) {
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="w-full overflow-x-auto rounded-lg border bg-background/50 p-4">
-          <div className="flex items-center gap-4">
-            <Music2 className="h-10 w-10 text-primary" />
-            <div className="flex flex-col">
-              <span className="text-muted-foreground">楽器構成:</span>
-              <div className="flex flex-wrap gap-2 pt-1">
-                {instrumentNames.map(name => (
-                  <Badge key={name} variant="secondary">{name}</Badge>
-                ))}
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <Music2 className="h-10 w-10 text-primary" />
+              <div className="flex flex-col">
+                <span className="text-muted-foreground">楽器構成:</span>
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {instrumentNames.map(name => (
+                    <Badge key={name} variant="secondary">{name}</Badge>
+                  ))}
+                </div>
               </div>
+            </div>
+             <div className="flex items-center gap-2 text-muted-foreground">
+                <Timer className="h-5 w-5" />
+                <span className="font-mono text-sm">{formatTime(totalDuration)}</span>
             </div>
           </div>
         </div>
+
+        <div className="space-y-3">
+            <Progress value={progress} className="w-full" />
+            <div className="flex justify-end">
+                <span className="font-mono text-sm text-muted-foreground">
+                    {formatTime(currentTime)} / {formatTime(totalDuration)}
+                </span>
+            </div>
+        </div>
+
         <div className="flex items-center justify-center space-x-4">
           <Button onClick={handlePlayPause} size="lg" className="w-28">
             {isPlaying ? <Pause /> : <Play />}
