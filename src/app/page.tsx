@@ -15,8 +15,10 @@ export default async function Home(
 ) {
   const { mood, genre, feeling } = searchParams;
   let pageState: PageState = {};
+  let isGenerating = false;
 
   if (mood && genre) {
+    isGenerating = true;
     try {
       const result = await generateSheetMusicFromMoodAndGenre({ mood, genre, feeling });
       if (result.sheetMusic) {
@@ -33,6 +35,7 @@ export default async function Home(
         pageState = { error: '予期せぬエラーが発生しました。もう一度お試しください。' };
       }
     }
+    isGenerating = false;
   }
 
   return (
@@ -52,7 +55,7 @@ export default async function Home(
 
         <MoodGenreForm defaultValues={{ mood, genre, feeling }} />
 
-        {mood && genre && !pageState.sheetMusic && !pageState.error && (
+        {isGenerating && !pageState.sheetMusic && !pageState.error && (
             <div className="flex flex-col items-center justify-center rounded-lg border bg-card p-8 text-center shadow-sm">
                 <div className="flex items-center space-x-2 text-muted-foreground">
                     <div className="h-5 w-5 animate-spin rounded-full border-b-2 border-primary"></div>
