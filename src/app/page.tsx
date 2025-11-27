@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import * as Tone from 'tone';
 import { Music } from 'lucide-react';
 import { MoodGenreForm } from '@/components/tune-flow/mood-genre-form';
 import MusicPlayer from '@/components/tune-flow/music-player';
