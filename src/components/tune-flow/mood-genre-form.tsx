@@ -14,8 +14,8 @@ import { moods, genres } from '@/lib/tuneflow-data';
 import { WandSparkles } from 'lucide-react';
 
 const FormSchema = z.object({
-  mood: z.string({ required_error: 'Please select a mood.' }),
-  genre: z.string({ required_error: 'Please select a genre.' }),
+  mood: z.string({ required_error: '気分を選択してください。' }),
+  genre: z.string({ required_error: 'ジャンルを選択してください。' }),
 });
 
 type FormValues = z.infer<typeof FormSchema>;
@@ -45,7 +45,7 @@ export function MoodGenreForm({ defaultValues }: { defaultValues?: Partial<FormV
   return (
     <Card className="w-full shadow-lg">
       <CardHeader>
-        <CardTitle className="text-2xl font-headline">Create Your Tune</CardTitle>
+        <CardTitle className="text-2xl font-headline">曲を作成</CardTitle>
       </CardHeader>
       <CardContent>
         <Form {...form}>
@@ -55,11 +55,11 @@ export function MoodGenreForm({ defaultValues }: { defaultValues?: Partial<FormV
               name="mood"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Mood</FormLabel>
+                  <FormLabel>気分</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="How are you feeling?" />
+                        <SelectValue placeholder="どんな気分ですか？" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -82,11 +82,11 @@ export function MoodGenreForm({ defaultValues }: { defaultValues?: Partial<FormV
               name="genre"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Genre</FormLabel>
+                  <FormLabel>ジャンル</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select a music style" />
+                        <SelectValue placeholder="音楽のスタイルを選択" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -109,12 +109,12 @@ export function MoodGenreForm({ defaultValues }: { defaultValues?: Partial<FormV
                 {isPending ? (
                   <>
                     <div className="mr-2 h-4 w-4 animate-spin rounded-full border-b-2 border-primary-foreground"></div>
-                    Generating...
+                    生成中...
                   </>
                 ) : (
                   <>
                     <WandSparkles />
-                    Generate Music
+                    音楽を生成
                   </>
                 )}
               </Button>

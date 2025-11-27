@@ -21,7 +21,7 @@ export default async function Home(
     if (result.sheetMusic) {
       pageState = { sheetMusic: result.sheetMusic };
     } else {
-      pageState = { error: 'Failed to generate sheet music. Please try again.' };
+      pageState = { error: '楽譜の生成に失敗しました。もう一度お試しください。' };
     }
   }
 
@@ -36,7 +36,7 @@ export default async function Home(
             TuneFlow
           </h1>
           <p className="mt-4 text-lg text-muted-foreground">
-            Craft a unique melody from your mood and favorite genre.
+            気分や好きなジャンルから、あなただけのメロディーを奏でよう。
           </p>
         </header>
 
@@ -46,7 +46,7 @@ export default async function Home(
             <div className="flex flex-col items-center justify-center rounded-lg border bg-card p-8 text-center shadow-sm">
                 <div className="flex items-center space-x-2 text-muted-foreground">
                     <div className="h-5 w-5 animate-spin rounded-full border-b-2 border-primary"></div>
-                    <span>Generating your masterpiece...</span>
+                    <span>傑作を生成中です...</span>
                 </div>
             </div>
         )}

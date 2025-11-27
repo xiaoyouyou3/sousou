@@ -58,15 +58,15 @@ export default function MusicPlayer({ sheetMusic }: { sheetMusic: string }) {
       console.error("Failed to parse sheet music:", e);
       toast({
         variant: "destructive",
-        title: "Invalid Music Data",
-        description: "The AI returned an invalid format for the sheet music.",
+        title: "無効な音楽データ",
+        description: "AIが無効な形式の楽譜を返しました。",
       });
       return [];
     }
   }, [sheetMusic, toast]);
 
   const totalDuration = useMemo(() => {
-    if (notes.length === 0) return Tone.Time(0);
+    if (notes.length === 0) return 0;
     const lastNote = notes[notes.length - 1];
     return Tone.Time(lastNote.time).toSeconds() + Tone.Time(lastNote.duration).toSeconds();
   }, [notes]);
@@ -146,7 +146,7 @@ export default function MusicPlayer({ sheetMusic }: { sheetMusic: string }) {
   return (
     <Card className="shadow-lg">
       <CardHeader>
-        <CardTitle className="text-2xl font-headline">Your Generated Score</CardTitle>
+        <CardTitle className="text-2xl font-headline">生成された楽譜</CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="w-full overflow-x-auto rounded-lg border bg-background/50 p-4">
@@ -186,7 +186,7 @@ export default function MusicPlayer({ sheetMusic }: { sheetMusic: string }) {
         <div className="flex items-center justify-center space-x-4">
           <Button onClick={handlePlayPause} size="lg" disabled={!isReady} className="w-28">
             {isPlaying ? <Pause /> : <Play />}
-            <span className="ml-2">{isPlaying ? 'Pause' : 'Play'}</span>
+            <span className="ml-2">{isPlaying ? '一時停止' : '再生'}</span>
           </Button>
           <Button onClick={handleStop} size="lg" variant="outline" disabled={!isReady}>
             <StopCircle />
