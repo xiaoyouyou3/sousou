@@ -37,7 +37,7 @@ function noteToY(note: string): number {
 }
 
 
-export default function MusicPlayer({ sheetMusic }: { sheetMusic: string }) {
+export default function MusicPlayer({ sheetMusic }: { sheetMusic: NoteEvent[] }) {
   const { toast } = useToast();
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentNoteIndex, setCurrentNoteIndex] = useState(-1);
@@ -45,33 +45,18 @@ export default function MusicPlayer({ sheetMusic }: { sheetMusic: string }) {
 
   const synth = useRef<Tone.PolySynth | null>(null);
   const part = useRef<Tone.Part<NoteEvent> | null>(null);
-  const notesRef = useRef<NoteEvent[]>([]);
   
   const notes = useMemo<NoteEvent[]>(() => {
-    try {
-      const parsed = JSON.parse(sheetMusic);
-      let noteData: any[];
-
-      // Handle both direct array and object with sheetMusic key
-      if (parsed.sheetMusic && Array.isArray(JSON.parse(parsed.sheetMusic))) {
-          noteData = JSON.parse(parsed.sheetMusic);
-      } else if (Array.isArray(parsed)) {
-        noteData = parsed;
-      } else {
-        noteData = [];
-      }
-      
-      // Filter out any invalid notes
-      return noteData.filter(n => n && typeof n.time === 'string' && typeof n.note === 'string' && typeof n.duration === 'string');
-    } catch (e) {
-      console.error("Failed to parse sheet music:", e);
-      toast({
+    if (!Array.isArray(sheetMusic)) {
+       toast({
         variant: "destructive",
         title: "無効な音楽データ",
         description: "AIが無効な形式の楽譜を返しました。",
       });
       return [];
     }
+    // Filter out any invalid notes
+    return sheetMusic.filter(n => n && typeof n.time === 'string' && typeof n.note === 'string' && typeof n.duration === 'string');
   }, [sheetMusic, toast]);
 
   const totalDuration = useMemo(() => {
@@ -84,10 +69,8 @@ export default function MusicPlayer({ sheetMusic }: { sheetMusic: string }) {
     }
   }, [notes]);
   
-  notesRef.current = notes;
-
   const setupTone = useCallback(() => {
-    if (notesRef.current.length === 0) return;
+    if (notes.length === 0) return;
 
     synth.current = new Tone.PolySynth(Tone.Synth, {
       oscillator: { type: 'fmsquare' },
@@ -99,10 +82,10 @@ export default function MusicPlayer({ sheetMusic }: { sheetMusic: string }) {
         synth.current?.triggerAttackRelease(note.note, note.duration, time);
       }
       Tone.Draw.schedule(() => {
-        const index = notesRef.current.findIndex(n => n.time === note.time && n.note === note.note);
+        const index = notes.findIndex(n => n.time === note.time && n.note === note.note);
         setCurrentNoteIndex(index);
       }, time);
-    }, notesRef.current).start(0);
+    }, notes).start(0);
 
     part.current.loop = false;
 
@@ -119,7 +102,7 @@ export default function MusicPlayer({ sheetMusic }: { sheetMusic: string }) {
       setIsPlaying(true);
     });
     
-  }, []);
+  }, [notes]);
 
   useEffect(() => {
     return () => {
@@ -138,8 +121,11 @@ export default function MusicPlayer({ sheetMusic }: { sheetMusic: string }) {
   }, [sheetMusic]);
 
   const handlePlayPause = async () => {
-    if (!isInitialized) {
+    if (Tone.context.state !== 'running') {
       await Tone.start();
+    }
+    
+    if (!isInitialized) {
       setupTone();
       setIsInitialized(true);
     }
@@ -157,8 +143,10 @@ export default function MusicPlayer({ sheetMusic }: { sheetMusic: string }) {
   };
 
   const handleRestart = async () => {
-    if (!isInitialized) {
+    if (Tone.context.state !== 'running') {
       await Tone.start();
+    }
+    if (!isInitialized) {
       setupTone();
       setIsInitialized(true);
     }

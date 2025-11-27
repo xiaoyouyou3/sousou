@@ -6,9 +6,15 @@ import { MoodGenreForm } from '@/components/tune-flow/mood-genre-form';
 import MusicPlayer from '@/components/tune-flow/music-player';
 import { generateSheetMusicFromMoodAndGenre, GenerateSheetMusicInput } from '@/ai/flows/generate-sheet-music-from-mood-and-genre';
 
+type NoteEvent = {
+  time: string;
+  note: string;
+  duration: string;
+};
+
 export default function Home() {
   const [isGenerating, setIsGenerating] = useState(false);
-  const [sheetMusic, setSheetMusic] = useState<string | undefined>(undefined);
+  const [sheetMusic, setSheetMusic] = useState<NoteEvent[] | undefined>(undefined);
   const [error, setError] = useState<string | undefined>(undefined);
   const [formValues, setFormValues] = useState<Partial<GenerateSheetMusicInput>>({});
 
@@ -27,7 +33,7 @@ export default function Home() {
       }
     } catch (e: any) {
       console.error(e);
-      if (e.message && (e.message.includes('503') || e.message.toLowerCase().includes('overloaded'))) {
+      if (e.message && (e.message.includes('503') || e.message.toLowerCase().includes('overloaded') || e.message.toLowerCase().includes('service unavailable'))) {
         setError('現在、AIモデルが大変混み合っています。しばらくしてから再度お試しください。');
       } else {
         setError('予期せぬエラーが発生しました。もう一度お試しください。');

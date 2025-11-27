@@ -19,8 +19,14 @@ const GenerateSheetMusicInputSchema = z.object({
 });
 export type GenerateSheetMusicInput = z.infer<typeof GenerateSheetMusicInputSchema>;
 
+const NoteSchema = z.object({
+  time: z.string().describe("The time at which the note should be played, in Tone.js transport time format (e.g., '0:0', '0:1.5')."),
+  note: z.string().describe("The pitch of the note (e.g., 'C4', 'F#5')."),
+  duration: z.string().describe("The duration of the note in Tone.js notation (e.g., '8n', '4n', '1m')."),
+});
+
 const GenerateSheetMusicOutputSchema = z.object({
-  sheetMusic: z.string().describe('The generated sheet music in a format compatible with Tone.js. This should be a JSON string representing an array of note objects, like `[{"time": "0:0", "note": "C4", "duration": "8n"}]`.'),
+  sheetMusic: z.array(NoteSchema).describe('The generated sheet music as an array of note objects, compatible with Tone.js.'),
 });
 export type GenerateSheetMusicOutput = z.infer<typeof GenerateSheetMusicOutputSchema>;
 
@@ -36,12 +42,19 @@ const prompt = ai.definePrompt({
 
   Based on the user's mood, desired music genre, and their current feeling, generate sheet music that reflects their choices. 
   
-  Return the sheet music as a valid JSON string. The JSON should be an array of objects, where each object represents a note and has 'time', 'note', and 'duration' properties.
-  Example: \`{"sheetMusic": "[{\\"time\\": \\"0:0\\", \\"note\\": \\"C4\\", \\"duration\\": \\"8n\\"}]"}\`
+  Return the sheet music as a valid JSON object. The JSON should contain a 'sheetMusic' key with an array of note objects. Each object must have 'time', 'note', and 'duration' properties.
+  Example of the expected output format:
+  {
+    "sheetMusic": [
+      {"time": "0:0", "note": "C4", "duration": "8n"},
+      {"time": "0:1", "note": "E4", "duration": "8n"},
+      {"time": "0:2", "note": "G4", "duration": "4n"}
+    ]
+  }
 
   The total duration of the generated music should be approximately within the range specified in seconds.
 
-  Do not include any other text, formatting, or markdown backticks in your response, only the JSON object.
+  Do not include any other text, formatting, or markdown backticks in your response, only the valid JSON object.
 
   Mood: {{{mood}}}
   Genre: {{{genre}}}
