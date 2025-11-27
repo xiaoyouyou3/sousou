@@ -44,24 +44,28 @@ export async function generateSheetMusicFromMoodAndGenre(input: GenerateSheetMus
 
 const prompt = ai.definePrompt({
   name: 'generateSheetMusicPrompt',
-  inputSchema: GenerateSheetMusicInputSchema,
-  outputSchema: GenerateSheetMusicOutputSchema,
+  inputSchema: GenerateSheetMusicInputSchema.extend({
+    currentSegmentNumber: z.number().optional(),
+    isFirstSegment: z.boolean().optional(),
+    isLastSegment: z.boolean().optional(),
+    isMiddleSegment: z.boolean().optional(),
+    isSingleSegment: z.boolean().optional(),
+  }),
+  output: {schema: GenerateSheetMusicOutputSchema},
   prompt: `You are a talented composer that creates multi-instrument sheet music for Tone.js.
 
   Based on the user's mood, desired music genre, and their current feeling, you will generate a segment of a song.
-  This is segment {{#math}}{{segmentIndex}} + 1{{/math}} of {{totalSegments}}.
+  This is segment {{currentSegmentNumber}} of {{totalSegments}}.
   
-  {{#ifEquals totalSegments 1}}
+  {{#if isSingleSegment}}
   Create a complete musical piece with a clear beginning, middle, and end.
-  {{/ifEquals}}
-  {{#if (gt totalSegments 1)}}
-    {{#ifEquals segmentIndex 0}}
-    This is the INTRODUCTORY part of the song. Create an engaging opening.
-    {{else}}{{#ifEquals segmentIndex (math totalSegments '-' 1)}}
-    This is the FINAL part of the song. Create a resolving and conclusive ending.
-    {{else}}
-    This is a MIDDLE part of the song. Continue the musical idea from the previous part and build on it.
-    {{/ifEquals}}{{/ifEquals}}
+  {{/if}}
+  {{#if isFirstSegment}}
+  This is the INTRODUCTORY part of the song. Create an engaging opening.
+  {{else if isLastSegment}}
+  This is the FINAL part of the song. Create a resolving and conclusive ending.
+  {{else if isMiddleSegment}}
+  This is a MIDDLE part of the song. Continue the musical idea from the previous part and build on it.
   {{/if}}
 
   The title of the song should be creative and consistent across all segments.
@@ -101,7 +105,18 @@ const generateSheetMusicFromMoodAndGenreFlow = ai.defineFlow(
     outputSchema: GenerateSheetMusicOutputSchema,
   },
   async input => {
-    const {output} = await prompt(input);
+    const { segmentIndex = 0, totalSegments = 1 } = input;
+    
+    const promptData = {
+      ...input,
+      currentSegmentNumber: segmentIndex + 1,
+      isSingleSegment: totalSegments === 1,
+      isFirstSegment: totalSegments > 1 && segmentIndex === 0,
+      isLastSegment: totalSegments > 1 && segmentIndex === totalSegments - 1,
+      isMiddleSegment: totalSegments > 1 && segmentIndex > 0 && segmentIndex < totalSegments - 1,
+    };
+
+    const {output} = await prompt(promptData);
     return output!;
   }
 );
