@@ -3,7 +3,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
-import { useEffect } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -12,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { moods, genres, durations } from '@/lib/tuneflow-data';
 import { WandSparkles } from 'lucide-react';
 import { Textarea } from '../ui/textarea';
+import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
 
 const FormSchema = z.object({
   mood: z.string({ required_error: '気分を選択してください。' }),
@@ -34,22 +34,11 @@ export function MoodGenreForm({ defaultValues, isGenerating, onSubmit }: MoodGen
     defaultValues: {
       mood: '',
       genre: '',
-      duration: '30',
+      duration: '15-30',
       feeling: '',
       ...defaultValues,
     },
   });
-
-  useEffect(() => {
-    form.reset({
-      mood: '',
-      genre: '',
-      duration: '30',
-      feeling: '',
-      ...defaultValues
-    });
-  }, [defaultValues, form]);
-
 
   return (
     <Card className="w-full shadow-lg">
@@ -59,7 +48,7 @@ export function MoodGenreForm({ defaultValues, isGenerating, onSubmit }: MoodGen
       <CardContent>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
               <FormField
                 control={form.control}
                 name="mood"
@@ -114,34 +103,36 @@ export function MoodGenreForm({ defaultValues, isGenerating, onSubmit }: MoodGen
                   </FormItem>
                 )}
               />
-              <FormField
-                control={form.control}
-                name="duration"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>再生時間</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="曲の長さを選択" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {durations.map(({ value, label, Icon }) => (
-                          <SelectItem key={value} value={value}>
-                            <div className="flex items-center gap-2">
-                              <Icon className="h-4 w-4 text-muted-foreground" />
-                              <span>{label}</span>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
             </div>
+             <FormField
+              control={form.control}
+              name="duration"
+              render={({ field }) => (
+                <FormItem className="space-y-3">
+                  <FormLabel>再生時間</FormLabel>
+                  <FormControl>
+                    <RadioGroup
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                      className="flex flex-col space-y-1"
+                    >
+                      {durations.map(({ value, label, Icon }) => (
+                        <FormItem key={value} className="flex items-center space-x-3 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value={value} />
+                          </FormControl>
+                          <FormLabel className="font-normal flex items-center gap-2">
+                            <Icon className="h-4 w-4 text-muted-foreground" />
+                            {label}
+                          </FormLabel>
+                        </FormItem>
+                      ))}
+                    </RadioGroup>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <FormField
               control={form.control}
               name="feeling"

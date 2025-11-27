@@ -17,7 +17,6 @@ import {
   Leaf,
   Castle,
   Clock3,
-  Clock8,
   Clock,
 } from 'lucide-react';
 
@@ -50,7 +49,6 @@ export const genres: Option[] = [
 ];
 
 export const durations: Option[] = [
-    { value: '15', label: '短い', Icon: Clock3 },
-    { value: '30', label: '普通', Icon: Clock8 },
-    { value: '60', label: '長い', Icon: Clock },
+    { value: '15-30', label: '15秒～30秒', Icon: Clock3 },
+    { value: '30-60', label: '30秒～1分', Icon: Clock },
 ];

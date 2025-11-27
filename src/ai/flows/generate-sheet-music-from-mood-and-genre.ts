@@ -15,7 +15,7 @@ const GenerateSheetMusicInputSchema = z.object({
   mood: z.string().describe('The mood selected by the user (e.g., happy, sad, energetic).'),
   genre: z.string().describe('The music genre selected by the user (e.g., pop, classical, jazz).'),
   feeling: z.string().optional().describe('An optional text describing the user\'s current feeling.'),
-  duration: z.string().optional().describe('The desired duration of the music in seconds.'),
+  duration: z.string().optional().describe('The desired duration range of the music in seconds (e.g., "15-30").'),
 });
 export type GenerateSheetMusicInput = z.infer<typeof GenerateSheetMusicInputSchema>;
 
@@ -39,14 +39,14 @@ const prompt = ai.definePrompt({
   Return the sheet music as a valid JSON string. The JSON should be an array of objects, where each object represents a note and has 'time', 'note', and 'duration' properties.
   Example: \`{"sheetMusic": "[{\\"time\\": \\"0:0\\", \\"note\\": \\"C4\\", \\"duration\\": \\"8n\\"}]"}\`
 
-  The total duration of the generated music should be approximately the number of seconds specified.
+  The total duration of the generated music should be approximately within the range specified in seconds.
 
   Do not include any other text, formatting, or markdown backticks in your response, only the JSON object.
 
   Mood: {{{mood}}}
   Genre: {{{genre}}}
   {{#if duration}}
-  Duration: {{{duration}}} seconds
+  Duration: within {{{duration}}} seconds
   {{/if}}
   {{#if feeling}}
   Feeling: {{{feeling}}}
