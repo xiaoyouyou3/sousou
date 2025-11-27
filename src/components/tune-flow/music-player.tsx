@@ -21,9 +21,10 @@ const NOTE_RADIUS = LINE_HEIGHT / 2 - 1;
 
 // Maps a note name (e.g., C4, F#5) to a Y position on the staff
 function noteToY(note: string): number {
-  if (!note) return 0; // Add a guard clause for safety
+  if (!note || typeof note !== 'string') return 0;
   const noteName = note.slice(0, -1).toUpperCase();
   const octave = parseInt(note.slice(-1), 10);
+  if (isNaN(octave)) return 0;
   const noteWithoutAccidental = noteName.charAt(0);
   const positionInOctave = NOTE_ORDER.indexOf(noteWithoutAccidental);
 
@@ -35,27 +36,31 @@ function noteToY(note: string): number {
   return c4Position - noteOctaveOffset - notePositionOffset;
 }
 
+
 export default function MusicPlayer({ sheetMusic }: { sheetMusic: string }) {
   const { toast } = useToast();
-  const [isReady, setIsReady] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentNoteIndex, setCurrentNoteIndex] = useState(-1);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   const synth = useRef<Tone.PolySynth | null>(null);
   const part = useRef<Tone.Part<NoteEvent> | null>(null);
+  const notesRef = useRef<NoteEvent[]>([]);
   
   const notes = useMemo<NoteEvent[]>(() => {
     try {
-      // The AI might return a string which is a JSON object with a key.
       const parsed = JSON.parse(sheetMusic);
       let noteData: any[];
-      if (parsed.sheetMusic && Array.isArray(parsed.sheetMusic)) {
-        noteData = parsed.sheetMusic;
+
+      // Handle both direct array and object with sheetMusic key
+      if (parsed.sheetMusic && Array.isArray(JSON.parse(parsed.sheetMusic))) {
+          noteData = JSON.parse(parsed.sheetMusic);
       } else if (Array.isArray(parsed)) {
         noteData = parsed;
       } else {
         noteData = [];
       }
+      
       // Filter out any invalid notes
       return noteData.filter(n => n && typeof n.time === 'string' && typeof n.note === 'string' && typeof n.duration === 'string');
     } catch (e) {
@@ -78,26 +83,26 @@ export default function MusicPlayer({ sheetMusic }: { sheetMusic: string }) {
       return 0;
     }
   }, [notes]);
+  
+  notesRef.current = notes;
 
-  const setupTone = useCallback(async () => {
-    if (notes.length === 0 || synth.current || part.current) return;
-    
-    await Tone.start();
-    
+  const setupTone = useCallback(() => {
+    if (notesRef.current.length === 0) return;
+
     synth.current = new Tone.PolySynth(Tone.Synth, {
-        oscillator: { type: 'fmsquare' },
-        envelope: { attack: 0.01, decay: 0.1, sustain: 0.3, release: 1 },
+      oscillator: { type: 'fmsquare' },
+      envelope: { attack: 0.01, decay: 0.1, sustain: 0.3, release: 1 },
     }).toDestination();
-    
+
     part.current = new Tone.Part<NoteEvent>((time, note) => {
       if (note.note) {
-          synth.current?.triggerAttackRelease(note.note, note.duration, time);
+        synth.current?.triggerAttackRelease(note.note, note.duration, time);
       }
       Tone.Draw.schedule(() => {
-        const index = notes.findIndex(n => n.time === note.time && n.note === note.note);
+        const index = notesRef.current.findIndex(n => n.time === note.time && n.note === note.note);
         setCurrentNoteIndex(index);
       }, time);
-    }, notes).start(0);
+    }, notesRef.current).start(0);
 
     part.current.loop = false;
 
@@ -114,33 +119,29 @@ export default function MusicPlayer({ sheetMusic }: { sheetMusic: string }) {
       setIsPlaying(true);
     });
     
-    setIsReady(true);
-  }, [notes]);
+  }, []);
 
   useEffect(() => {
-    // Only setup if notes are available.
-    // The actual start of Tone is deferred until user interaction.
-    if (notes.length > 0 && !isReady) {
-      // We don't call setupTone() here directly to avoid auto-playing sound.
-      // We will call it on the first play action.
-    }
-
     return () => {
       if (Tone.Transport.state !== 'stopped') {
         Tone.Transport.stop();
+        Tone.Transport.cancel();
       }
-      Tone.Transport.cancel();
       part.current?.dispose();
       synth.current?.dispose();
       part.current = null;
       synth.current = null;
-      setIsReady(false);
+      setIsInitialized(false);
+      setIsPlaying(false);
+      setCurrentNoteIndex(-1);
     };
-  }, [notes, isReady]);
+  }, [sheetMusic]);
 
   const handlePlayPause = async () => {
-    if (!isReady) {
-      await setupTone();
+    if (!isInitialized) {
+      await Tone.start();
+      setupTone();
+      setIsInitialized(true);
     }
 
     if (Tone.Transport.state === 'started') {
@@ -151,13 +152,15 @@ export default function MusicPlayer({ sheetMusic }: { sheetMusic: string }) {
   };
 
   const handleStop = () => {
-    if (!isReady) return;
+    if (!isInitialized) return;
     Tone.Transport.stop();
   };
 
   const handleRestart = async () => {
-    if (!isReady) {
-      await setupTone();
+    if (!isInitialized) {
+      await Tone.start();
+      setupTone();
+      setIsInitialized(true);
     }
     Tone.Transport.stop();
     Tone.Transport.start();
@@ -203,6 +206,9 @@ export default function MusicPlayer({ sheetMusic }: { sheetMusic: string }) {
                     {(y >= STAFF_HEIGHT + NOTE_RADIUS || y <= -NOTE_RADIUS) && (
                         <line x1={-NOTE_RADIUS - 2} y1="0" x2={NOTE_RADIUS + 2} y2="0" className="stroke-muted-foreground" strokeWidth="1.5" />
                     )}
+                     {(y >= STAFF_HEIGHT + NOTE_RADIUS + LINE_HEIGHT || y <= -NOTE_RADIUS - LINE_HEIGHT) && (
+                        <line x1={-NOTE_RADIUS - 2} y1={y > 0 ? LINE_HEIGHT : -LINE_HEIGHT} x2={NOTE_RADIUS + 2} y2={y > 0 ? LINE_HEIGHT : -LINE_HEIGHT} className="stroke-muted-foreground" strokeWidth="1.5" />
+                    )}
                   </g>
                 );
               })}
@@ -214,10 +220,10 @@ export default function MusicPlayer({ sheetMusic }: { sheetMusic: string }) {
             {isPlaying ? <Pause /> : <Play />}
             <span className="ml-2">{isPlaying ? '一時停止' : '再生'}</span>
           </Button>
-          <Button onClick={handleStop} size="lg" variant="outline" disabled={!isReady && !isPlaying}>
+          <Button onClick={handleStop} size="lg" variant="outline" disabled={!isInitialized}>
             <StopCircle />
           </Button>
-          <Button onClick={handleRestart} size="lg" variant="outline" disabled={!isReady && !isPlaying}>
+          <Button onClick={handleRestart} size="lg" variant="outline" disabled={!isInitialized}>
             <RefreshCw />
           </Button>
         </div>
