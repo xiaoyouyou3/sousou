@@ -27,7 +27,7 @@ export default function Home() {
       }
     } catch (e: any) {
       console.error(e);
-      if (e.message && (e.message.includes('503') || e.message.includes('overloaded'))) {
+      if (e.message && (e.message.includes('503') || e.message.toLowerCase().includes('overloaded'))) {
         setError('現在、AIモデルが大変混み合っています。しばらくしてから再度お試しください。');
       } else {
         setError('予期せぬエラーが発生しました。もう一度お試しください。');
