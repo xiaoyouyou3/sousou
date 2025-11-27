@@ -42,6 +42,14 @@ export default function MusicPlayer({ title, parts }: MusicPlayerProps) {
   const toneParts = useRef<Tone.Part[]>([]);
   const progressAnimationRef = useRef<number>();
 
+  const isValidTime = (time: string) => {
+    try {
+      return Tone.Time(time).toSeconds() >= 0;
+    } catch {
+      return false;
+    }
+  };
+
   const validatedParts = useMemo<InstrumentPart[]>(() => {
     if (!Array.isArray(parts)) {
       toast({
@@ -55,7 +63,14 @@ export default function MusicPlayer({ title, parts }: MusicPlayerProps) {
       .map(part => ({
         ...part,
         notes: (part.notes || []).filter(
-          n => n && typeof n.time === 'string' && typeof n.note === 'string' && typeof n.duration === 'string'
+          n => 
+            n && 
+            typeof n.time === 'string' &&
+            typeof n.note === 'string' &&
+            typeof n.duration === 'string' &&
+            isValidTime(n.time) &&
+            isValidTime(n.duration) &&
+            Tone.Time(n.duration).toSeconds() > 0
         ),
       }))
       .filter(part => part.notes.length > 0);
@@ -83,7 +98,6 @@ export default function MusicPlayer({ title, parts }: MusicPlayerProps) {
   const instrumentNames = useMemo(() => validatedParts.map(p => p.instrument), [validatedParts]);
 
   const cleanupTone = useCallback(async () => {
-    // Stop and dispose all Tone.js objects
     await Tone.Transport.stop();
     await Tone.Transport.cancel();
 
@@ -95,11 +109,6 @@ export default function MusicPlayer({ title, parts }: MusicPlayerProps) {
     
     if (progressAnimationRef.current) {
         cancelAnimationFrame(progressAnimationRef.current);
-    }
-    
-    // Ensure the context is running, but reset state
-    if (Tone.context.state !== 'running') {
-      await Tone.start();
     }
     
     setIsInitialized(false);
@@ -192,10 +201,8 @@ export default function MusicPlayer({ title, parts }: MusicPlayerProps) {
         progressAnimationRef.current = requestAnimationFrame(updateProgress);
     });
 
-    // Use a clear stop event at the end of the duration
     Tone.Transport.scheduleOnce(time => {
         Tone.Draw.schedule(() => {
-            // Check if it was not stopped manually
             if (Tone.Transport.state === 'started') {
                 Tone.Transport.stop();
             }
@@ -209,24 +216,31 @@ export default function MusicPlayer({ title, parts }: MusicPlayerProps) {
 
 
   useEffect(() => {
-    if (parts.length > 0) {
+    // This effect now strictly handles setup and cleanup when parts change.
+    if (parts && parts.length > 0) {
       setupTone();
     }
+    
     return () => {
       cleanupTone();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [parts]); // React to changes in `parts` prop
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [parts]);
 
 
   const handlePlayPause = async () => {
-    if (!isInitialized || Tone.context.state !== 'running') {
+    if (Tone.context.state !== 'running') {
       console.log('Audio context not running, starting...');
       await Tone.start();
       console.log('Audio context started.');
-       if (!isInitialized) {
-         await setupTone();
-       }
+    }
+    
+    if (!isInitialized) {
+      console.log('Player not initialized, setting up...');
+      await setupTone();
+      // Need a small delay to ensure setup is complete before starting
+      setTimeout(() => Tone.Transport.start(), 100);
+      return;
     }
     
     if (Tone.Transport.state === 'started') {
@@ -243,7 +257,8 @@ export default function MusicPlayer({ title, parts }: MusicPlayerProps) {
 
   const handleRestart = async () => {
     if (!isInitialized) {
-      await setupTone();
+       await handlePlayPause();
+       return;
     }
     if (Tone.Transport.state !== 'stopped') {
         Tone.Transport.stop();
@@ -291,14 +306,14 @@ export default function MusicPlayer({ title, parts }: MusicPlayerProps) {
         </div>
 
         <div className="flex items-center justify-center space-x-4">
-          <Button onClick={handlePlayPause} size="lg" className="w-28" disabled={!isInitialized}>
+          <Button onClick={handlePlayPause} size="lg" className="w-28">
             {isPlaying ? <Pause /> : <Play />}
             <span className="ml-2">{isPlaying ? '一時停止' : '再生'}</span>
           </Button>
           <Button onClick={handleStop} size="lg" variant="outline" disabled={!isInitialized || (!isPlaying && Tone.Transport.state === 'stopped')}>
             <StopCircle />
           </Button>
-          <Button onClick={handleRestart} size="lg" variant="outline" disabled={!isInitialized}>
+          <Button onClick={handleRestart} size="lg" variant="outline">
             <RefreshCw />
           </Button>
         </div>
@@ -306,3 +321,5 @@ export default function MusicPlayer({ title, parts }: MusicPlayerProps) {
     </Card>
   );
 }
+
+    
