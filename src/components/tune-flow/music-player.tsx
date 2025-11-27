@@ -215,6 +215,7 @@ export default function MusicPlayer({ title, parts }: MusicPlayerProps) {
     return () => {
       cleanupTone();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [parts]); // React to changes in `parts` prop
 
 
