@@ -57,18 +57,27 @@ export default function MusicPlayer({ title, parts }: MusicPlayerProps) {
 
   const instrumentNames = useMemo(() => validatedParts.map(p => p.instrument), [validatedParts]);
 
+  const cleanupTone = useCallback(() => {
+    if (Tone.Transport.state !== 'stopped') {
+      Tone.Transport.stop();
+      Tone.Transport.cancel();
+    }
+    toneParts.current.forEach(p => p.dispose());
+    synths.current.forEach(s => s.dispose());
+    toneParts.current = [];
+    synths.current.clear();
+    setIsInitialized(false);
+    setIsPlaying(false);
+    console.log('Tone.js resources cleaned up.');
+  }, []);
+
   const setupTone = useCallback(async () => {
-    if (validatedParts.length === 0 || !Tone.Transport.stopped) return;
+    cleanupTone();
+    if (validatedParts.length === 0) return;
 
     await Tone.start();
     console.log('AudioContext started');
     
-    // Cleanup old synths and parts
-    synths.current.forEach(synth => synth.dispose());
-    synths.current.clear();
-    toneParts.current.forEach(p => p.dispose());
-    toneParts.current = [];
-
     validatedParts.forEach(partData => {
       let synth: Tone.PolySynth;
       // Basic synth selection, can be expanded
@@ -99,45 +108,65 @@ export default function MusicPlayer({ title, parts }: MusicPlayerProps) {
       synths.current.set(partData.instrument, synth);
       
       const tonePart = new Tone.Part<NoteEvent>((time, note) => {
-        const notesToPlay = note.note.split(' ');
-        synth.triggerAttackRelease(notesToPlay, note.duration, time);
+        const currentSynth = synths.current.get(partData.instrument);
+        if (currentSynth) {
+          const notesToPlay = note.note.split(' ');
+          currentSynth.triggerAttackRelease(notesToPlay, note.duration, time);
+        }
       }, partData.notes).start(0);
 
       tonePart.loop = false;
       toneParts.current.push(tonePart);
     });
 
-    Tone.Transport.on('stop', () => setIsPlaying(false));
-    Tone.Transport.on('pause', () => setIsPlaying(false));
-    Tone.Transport.on('start', () => setIsPlaying(true));
-
+    const onStop = () => setIsPlaying(false);
+    const onPause = () => setIsPlaying(false);
+    const onStart = () => setIsPlaying(true);
+    
+    Tone.Transport.on('stop', onStop);
+    Tone.Transport.on('pause', onPause);
+    Tone.Transport.on('start', onStart);
+    
     setIsInitialized(true);
     console.log('Tone.js setup complete with', validatedParts.length, 'parts');
 
-  }, [validatedParts]);
+    return () => {
+        Tone.Transport.off('stop', onStop);
+        Tone.Transport.off('pause', onPause);
+        Tone.Transport.off('start', onStart);
+    }
+  }, [validatedParts, cleanupTone]);
 
 
   useEffect(() => {
+    // This effect handles the complete re-initialization when the parts prop changes.
+    // It is responsible for setting up Tone.js for the new song.
+    let cleanup: (() => void) | undefined;
+    setupTone().then(cleanupFn => {
+        cleanup = cleanupFn;
+    });
+
     return () => {
-      if (Tone.Transport.state !== 'stopped') {
-        Tone.Transport.stop();
-        Tone.Transport.cancel();
-      }
-      toneParts.current.forEach(p => p.dispose());
-      synths.current.forEach(s => s.dispose());
-      toneParts.current = [];
-      synths.current.clear();
-      setIsInitialized(false);
-      setIsPlaying(false);
+        if (cleanup) {
+            cleanup();
+        }
+        cleanupTone();
     };
-  }, [parts]); // Rerun cleanup when original parts change
+  }, [parts, setupTone, cleanupTone]); // 'parts' is the key dependency. setupTone and cleanupTone are stable.
 
   const handlePlayPause = async () => {
+    // This function now only handles the play/pause logic, assuming setup is done.
     if (!isInitialized) {
+       console.log('Setup not complete, please wait.');
+       toast({
+        title: "準備中...",
+        description: "音楽の再生準備をしています。もう一度お試しください。",
+      });
+      // Try to re-run setup just in case.
       await setupTone();
+      return;
     }
     
-    // Ensure Transport is running
     if (Tone.context.state !== 'running') {
       await Tone.start();
     }
@@ -156,7 +185,11 @@ export default function MusicPlayer({ title, parts }: MusicPlayerProps) {
 
   const handleRestart = async () => {
     if (!isInitialized) {
-      await setupTone();
+      toast({
+        title: "準備中...",
+        description: "音楽の再生準備をしています。もう一度お試しください。",
+      });
+      return;
     }
     Tone.Transport.stop();
     // A small delay might help ensure stop is processed before start
@@ -190,7 +223,7 @@ export default function MusicPlayer({ title, parts }: MusicPlayerProps) {
             {isPlaying ? <Pause /> : <Play />}
             <span className="ml-2">{isPlaying ? '一時停止' : '再生'}</span>
           </Button>
-          <Button onClick={handleStop} size="lg" variant="outline" disabled={!isInitialized}>
+          <Button onClick={handleStop} size="lg" variant="outline" disabled={!isInitialized || !isPlaying}>
             <StopCircle />
           </Button>
           <Button onClick={handleRestart} size="lg" variant="outline" disabled={!isInitialized}>
