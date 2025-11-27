@@ -80,7 +80,7 @@ export default function MusicPlayer({ title, parts }: MusicPlayerProps) {
     
     validatedParts.forEach(partData => {
       let synth: Tone.PolySynth;
-      // Basic synth selection, can be expanded
+      // 音割れを防ぐために各楽器の音量を調整
       switch (partData.instrument.toLowerCase()) {
         case 'drums':
           synth = new Tone.PolySynth(Tone.MembraneSynth, {
@@ -88,20 +88,23 @@ export default function MusicPlayer({ title, parts }: MusicPlayerProps) {
             octaves: 10,
             oscillator: { type: 'sine' },
             envelope: { attack: 0.001, decay: 0.4, sustain: 0.01, release: 1.4, attackCurve: 'exponential' },
+            volume: -6 // ドラムの音量を下げる
           }).toDestination();
           break;
         case 'bass':
            synth = new Tone.PolySynth(Tone.MonoSynth, {
             oscillator: { type: "fmsquare", modulationType: "sawtooth", modulationIndex: 0.2, harmonicity: 3.4 },
-            envelope: { attack: 0.001, decay: 0.1, sustain: 0.4, release: 2, attackCurve: "exponential" },
-            filterEnvelope: { attack: 0.01, decay: 0.1, sustain: 0.8, release: 1.5, baseFrequency: 50, octaves: 4.4, exponent: 2 },
-            filter: { Q: 2, type: 'lowpass', rolloff: -24 }
+            envelope: { attack: 0.001, decay: 0.1, sustain: 0.4, release: 2 },
+            filterEnvelope: { attack: 0.01, decay: 0.1, sustain: 0.8, release: 1.5, baseFrequency: 50, octaves: 4.4 },
+            filter: { Q: 2, type: 'lowpass', rolloff: -24 },
+            volume: -8 // ベースの音量を下げる
           }).toDestination();
           break;
         default: // Piano, Synth, Guitar etc.
           synth = new Tone.PolySynth(Tone.Synth, {
             oscillator: { type: 'fmsquare' },
             envelope: { attack: 0.01, decay: 0.1, sustain: 0.3, release: 1 },
+            volume: -12 // その他の楽器の音量を下げる
           }).toDestination();
           break;
       }
