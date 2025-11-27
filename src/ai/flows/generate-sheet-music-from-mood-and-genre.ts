@@ -52,10 +52,10 @@ const prompt = ai.definePrompt({
   - For 'classical', use instruments like Piano, Violin, and Cello.
   - For 'jazz', use instruments like Piano, Bass, and Saxophone.
   - For 'rock', use instruments like Guitar, Bass, and Drums.
-  - For 'electronic', use instruments like Synth, Pad, and Arpeggiator.
+  - For 'electronic', use instruments like Synth, Bass, and Arpeggiator.
   - For 'ambient', use instruments like Pad, Synth, and FX.
   - For 'lo-fi', use instruments like Electric Piano, Bass, and Drums with a relaxed feel.
-  - For 'sci-fi', use futuristic sounds like Synth, Pad, and otherworldly FX.
+  - For 'sci-fi', use futuristic sounds like Synth, Pad, and Arpeggiator.
 
   Return the title and sheet music as a valid JSON object. The JSON must contain:
   1. A 'title' key with a creative song title.
@@ -85,7 +85,7 @@ const prompt = ai.definePrompt({
   }
 
   The total duration of the generated music should be approximately within the range specified in seconds.
-  Ensure the generated sheet music is creative, harmonically interesting, and playable.
+  Ensure the generated sheet music is creative, harmonically interesting, and playable. Avoid creating notes that are too short, which can cause clicking sounds. Ensure that for a single instrument, notes do not overlap in time.
   Do not include any other text, formatting, or markdown backticks in your response, only the valid JSON object.
 
   Mood: {{{mood}}}
