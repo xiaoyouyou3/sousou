@@ -12,10 +12,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { moods, genres } from '@/lib/tuneflow-data';
 import { WandSparkles } from 'lucide-react';
+import { Textarea } from '../ui/textarea';
 
 const FormSchema = z.object({
   mood: z.string({ required_error: '気分を選択してください。' }),
   genre: z.string({ required_error: 'ジャンルを選択してください。' }),
+  feeling: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof FormSchema>;
@@ -30,6 +32,7 @@ export function MoodGenreForm({ defaultValues }: { defaultValues?: Partial<FormV
     defaultValues: {
       mood: defaultValues?.mood || '',
       genre: defaultValues?.genre || '',
+      feeling: defaultValues?.feeling || '',
     },
   });
 
@@ -38,6 +41,11 @@ export function MoodGenreForm({ defaultValues }: { defaultValues?: Partial<FormV
       const params = new URLSearchParams(searchParams);
       params.set('mood', data.mood);
       params.set('genre', data.genre);
+      if (data.feeling) {
+        params.set('feeling', data.feeling);
+      } else {
+        params.delete('feeling');
+      }
       router.push(`/?${params.toString()}`);
     });
   }
@@ -49,63 +57,85 @@ export function MoodGenreForm({ defaultValues }: { defaultValues?: Partial<FormV
       </CardHeader>
       <CardContent>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_auto]">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+              <FormField
+                control={form.control}
+                name="mood"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>気分</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="どんな気分ですか？" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {moods.map(({ value, label, Icon }) => (
+                          <SelectItem key={value} value={value}>
+                            <div className="flex items-center gap-2">
+                              <Icon className="h-4 w-4 text-muted-foreground" />
+                              <span>{label}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="genre"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>ジャンル</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="音楽のスタイルを選択" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {genres.map(({ value, label, Icon }) => (
+                          <SelectItem key={value} value={value}>
+                            <div className="flex items-center gap-2">
+                              <Icon className="h-4 w-4 text-muted-foreground" />
+                              <span>{label}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
             <FormField
               control={form.control}
-              name="mood"
+              name="feeling"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>気分</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="どんな気分ですか？" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {moods.map(({ value, label, Icon }) => (
-                        <SelectItem key={value} value={value}>
-                          <div className="flex items-center gap-2">
-                            <Icon className="h-4 w-4 text-muted-foreground" />
-                            <span>{label}</span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <FormLabel>
+                    今の気持ち (オプション)
+                    <span className="ml-2 text-xs text-muted-foreground">AIがより気持ちに寄り添った曲を生成します。</span>
+                  </FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="例：新しいプロジェクトが成功して、チームみんなで喜びを分かち合っている感じ！"
+                      className="resize-none"
+                      {...field}
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            <FormField
-              control={form.control}
-              name="genre"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>ジャンル</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="音楽のスタイルを選択" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {genres.map(({ value, label, Icon }) => (
-                        <SelectItem key={value} value={value}>
-                          <div className="flex items-center gap-2">
-                            <Icon className="h-4 w-4 text-muted-foreground" />
-                            <span>{label}</span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <div className="sm:col-span-2 lg:col-span-1 lg:self-end">
-              <Button type="submit" className="w-full" disabled={isPending}>
+            <div className="pt-2">
+              <Button type="submit" className="w-full" size="lg" disabled={isPending}>
                 {isPending ? (
                   <>
                     <div className="mr-2 h-4 w-4 animate-spin rounded-full border-b-2 border-primary-foreground"></div>

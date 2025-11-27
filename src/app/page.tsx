@@ -13,12 +13,12 @@ type PageState = {
 export default async function Home(
   { searchParams }: { searchParams: GenerateSheetMusicInput & { state?: string } }
 ) {
-  const { mood, genre } = searchParams;
+  const { mood, genre, feeling } = searchParams;
   let pageState: PageState = {};
 
   if (mood && genre) {
     try {
-      const result = await generateSheetMusicFromMoodAndGenre({ mood, genre });
+      const result = await generateSheetMusicFromMoodAndGenre({ mood, genre, feeling });
       if (result.sheetMusic) {
         pageState = { sheetMusic: result.sheetMusic };
       } else {
@@ -50,7 +50,7 @@ export default async function Home(
           </p>
         </header>
 
-        <MoodGenreForm defaultValues={{ mood, genre }} />
+        <MoodGenreForm defaultValues={{ mood, genre, feeling }} />
 
         {mood && genre && !pageState.sheetMusic && !pageState.error && (
             <div className="flex flex-col items-center justify-center rounded-lg border bg-card p-8 text-center shadow-sm">

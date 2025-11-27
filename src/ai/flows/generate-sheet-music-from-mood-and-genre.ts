@@ -1,7 +1,7 @@
 'use server';
 
 /**
- * @fileOverview Generates sheet music based on the selected mood and genre.
+ * @fileOverview Generates sheet music based on the selected mood, genre, and optional feeling.
  *
  * - generateSheetMusicFromMoodAndGenre - A function that handles the sheet music generation process.
  * - GenerateSheetMusicInput - The input type for the generateSheetMusicFromMoodAndGenre function.
@@ -14,6 +14,7 @@ import {z} from 'genkit';
 const GenerateSheetMusicInputSchema = z.object({
   mood: z.string().describe('The mood selected by the user (e.g., happy, sad, energetic).'),
   genre: z.string().describe('The music genre selected by the user (e.g., pop, classical, jazz).'),
+  feeling: z.string().optional().describe('An optional text describing the user\'s current feeling.'),
 });
 export type GenerateSheetMusicInput = z.infer<typeof GenerateSheetMusicInputSchema>;
 
@@ -32,12 +33,15 @@ const prompt = ai.definePrompt({
   output: {schema: GenerateSheetMusicOutputSchema},
   prompt: `You are a composer that specializes in creating sheet music with Tone.js.
 
-  Based on the user's mood and desired music genre, generate sheet music that reflects their choices. Return the sheet music in a valid JSON format that is compatible with Tone.js.
+  Based on the user's mood, desired music genre, and their current feeling, generate sheet music that reflects their choices. Return the sheet music in a valid JSON format that is compatible with Tone.js.
 
   Do not include any other text or formatting in your response, only the JSON object.
 
   Mood: {{{mood}}}
   Genre: {{{genre}}}
+  {{#if feeling}}
+  Feeling: {{{feeling}}}
+  {{/if}}
 
   Ensure the generated sheet music is creative, reflects the user's choices, and is playable.
   `
