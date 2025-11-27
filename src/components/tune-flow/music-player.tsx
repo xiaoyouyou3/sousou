@@ -70,7 +70,7 @@ export default function MusicPlayer({ title, parts }: MusicPlayerProps) {
             typeof n.duration === 'string' &&
             isValidTime(n.time) &&
             isValidTime(n.duration) &&
-            Tone.Time(n.duration).toSeconds() > 0
+            Tone.Time(n.duration).toSeconds() > 0.01 // Very short notes can cause clicks
         ),
       }))
       .filter(part => part.notes.length > 0);
@@ -98,18 +98,22 @@ export default function MusicPlayer({ title, parts }: MusicPlayerProps) {
   const instrumentNames = useMemo(() => validatedParts.map(p => p.instrument), [validatedParts]);
 
   const cleanupTone = useCallback(async () => {
-    await Tone.Transport.stop();
-    await Tone.Transport.cancel();
-
+    // Make sure transport is stopped before cleaning up
+    if (Tone.Transport.state !== 'stopped') {
+        Tone.Transport.stop();
+        Tone.Transport.cancel();
+    }
+    
+    if (progressAnimationRef.current) {
+        cancelAnimationFrame(progressAnimationRef.current);
+    }
+    
+    // Dispose all parts and synths
     toneParts.current.forEach(p => p.dispose());
     synths.current.forEach(s => s.dispose());
 
     toneParts.current = [];
     synths.current.clear();
-    
-    if (progressAnimationRef.current) {
-        cancelAnimationFrame(progressAnimationRef.current);
-    }
     
     setIsInitialized(false);
     setIsPlaying(false);
@@ -139,30 +143,31 @@ export default function MusicPlayer({ title, parts }: MusicPlayerProps) {
     
     validatedParts.forEach(partData => {
       let synth: any;
+      // Adjust envelopes and volumes to prevent clipping and noise
       switch (partData.instrument.toLowerCase()) {
         case 'drums':
           synth = new Tone.PolySynth(Tone.MembraneSynth, {
-            pitchDecay: 0.05,
-            octaves: 10,
+            pitchDecay: 0.02,
+            octaves: 8,
             oscillator: { type: 'sine' },
-            envelope: { attack: 0.001, decay: 0.4, sustain: 0.01, release: 1.4, attackCurve: 'exponential' },
-            volume: -10
+            envelope: { attack: 0.005, decay: 0.3, sustain: 0.01, release: 0.8, attackCurve: 'exponential' },
+            volume: -12
           }).toDestination();
           break;
         case 'bass':
            synth = new Tone.PolySynth(Tone.MonoSynth, {
             oscillator: { type: "fmsquare", modulationType: "sawtooth", modulationIndex: 0.2, harmonicity: 3.4 },
-            envelope: { attack: 0.001, decay: 0.1, sustain: 0.4, release: 2 },
-            filterEnvelope: { attack: 0.01, decay: 0.1, sustain: 0.8, release: 1.5, baseFrequency: 50, octaves: 4.4 },
+            envelope: { attack: 0.01, decay: 0.1, sustain: 0.4, release: 1 },
+            filterEnvelope: { attack: 0.02, decay: 0.1, sustain: 0.6, release: 1, baseFrequency: 60, octaves: 4 },
             filter: { Q: 2, type: 'lowpass', rolloff: -24 },
-            volume: -12
+            volume: -15
           }).toDestination();
           break;
-        default:
+        default: // For Piano, Synth, Guitar etc.
           synth = new Tone.PolySynth(Tone.Synth, {
-            oscillator: { type: 'fmsquare' },
-            envelope: { attack: 0.01, decay: 0.1, sustain: 0.3, release: 1 },
-            volume: -16
+            oscillator: { type: 'fmsine' },
+            envelope: { attack: 0.02, decay: 0.2, sustain: 0.2, release: 0.5 },
+            volume: -18
           }).toDestination();
           break;
       }
@@ -181,19 +186,19 @@ export default function MusicPlayer({ title, parts }: MusicPlayerProps) {
     });
     
     Tone.Transport.on('stop', () => {
-      setIsPlaying(false);
-      setProgress(0);
-      setCurrentTime(0);
       if (progressAnimationRef.current) {
         cancelAnimationFrame(progressAnimationRef.current);
       }
+      setIsPlaying(false);
+      setProgress(0);
+      setCurrentTime(0);
     });
 
     Tone.Transport.on('pause', () => {
-        setIsPlaying(false);
         if (progressAnimationRef.current) {
-            cancelAnimationFrame(progressAnimationRef.current);
+            cancelAnimationFrame(progressAnimation-ref.current);
         }
+        setIsPlaying(false);
     });
 
     Tone.Transport.on('start', () => {
@@ -321,5 +326,3 @@ export default function MusicPlayer({ title, parts }: MusicPlayerProps) {
     </Card>
   );
 }
-
-    
