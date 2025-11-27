@@ -21,13 +21,18 @@ export type GenerateSheetMusicInput = z.infer<typeof GenerateSheetMusicInputSche
 
 const NoteSchema = z.object({
   time: z.string().describe("The time at which the note should be played, in Tone.js transport time format (e.g., '0:0', '0:1.5')."),
-  note: z.string().describe("The pitch of the note (e.g., 'C4', 'F#5')."),
+  note: z.string().describe("The pitch of the note (e.g., 'C4', 'F#5'). Can also be a chord with notes separated by spaces."),
   duration: z.string().describe("The duration of the note in Tone.js notation (e.g., '8n', '4n', '1m')."),
+});
+
+const InstrumentPartSchema = z.object({
+  instrument: z.string().describe("The name of the instrument (e.g., 'Piano', 'Guitar', 'Drums')."),
+  notes: z.array(NoteSchema).describe("The sheet music for this instrument as an array of note objects."),
 });
 
 const GenerateSheetMusicOutputSchema = z.object({
   title: z.string().describe('A creative song title based on the user\'s input.'),
-  sheetMusic: z.array(NoteSchema).describe('The generated sheet music as an array of note objects, compatible with Tone.js.'),
+  parts: z.array(InstrumentPartSchema).describe('An array of musical parts, one for each instrument. The number of instruments should be between 1 and 3, appropriate for the genre.'),
 });
 export type GenerateSheetMusicOutput = z.infer<typeof GenerateSheetMusicOutputSchema>;
 
@@ -39,23 +44,48 @@ const prompt = ai.definePrompt({
   name: 'generateSheetMusicPrompt',
   input: {schema: GenerateSheetMusicInputSchema},
   output: {schema: GenerateSheetMusicOutputSchema},
-  prompt: `You are a composer that specializes in creating sheet music with Tone.js.
+  prompt: `You are a talented composer that creates multi-instrument sheet music for Tone.js.
 
-  Based on the user's mood, desired music genre, and their current feeling, generate a creative song title and sheet music that reflects their choices. 
+  Based on the user's mood, desired music genre, and their current feeling, generate a creative song title and sheet music for 1 to 3 instruments that are appropriate for the genre.
   
-  Return the title and sheet music as a valid JSON object. The JSON should contain a 'title' key and a 'sheetMusic' key with an array of note objects. Each object must have 'time', 'note', and 'duration' properties.
+  - For 'pop', use instruments like Synth, Bass, and Drums.
+  - For 'classical', use instruments like Piano, Violin, and Cello.
+  - For 'jazz', use instruments like Piano, Bass, and Saxophone.
+  - For 'rock', use instruments like Guitar, Bass, and Drums.
+  - For 'electronic', use instruments like Synth, Pad, and Arpeggiator.
+  - For 'ambient', use instruments like Pad, Synth, and FX.
+  - For 'lo-fi', use instruments like Electric Piano, Bass, and Drums with a relaxed feel.
+  - For 'sci-fi', use futuristic sounds like Synth, Pad, and otherworldly FX.
+
+  Return the title and sheet music as a valid JSON object. The JSON must contain:
+  1. A 'title' key with a creative song title.
+  2. A 'parts' key with an array of instrument parts. Each part object must have:
+     - 'instrument': The name of the instrument.
+     - 'notes': An array of note objects, each with 'time', 'note', and 'duration' properties.
+
   Example of the expected output format:
   {
-    "title": "Sunrise Over the City",
-    "sheetMusic": [
-      {"time": "0:0", "note": "C4", "duration": "8n"},
-      {"time": "0:1", "note": "E4", "duration": "8n"},
-      {"time": "0:2", "note": "G4", "duration": "4n"}
+    "title": "Cosmic Jazz",
+    "parts": [
+      {
+        "instrument": "Piano",
+        "notes": [
+          {"time": "0:0", "note": "C4 E4 G4", "duration": "4n"},
+          {"time": "0:2", "note": "D4 F4 A4", "duration": "4n"}
+        ]
+      },
+      {
+        "instrument": "Bass",
+        "notes": [
+          {"time": "0:0", "note": "C2", "duration": "2n"},
+          {"time": "0:2", "note": "D2", "duration": "2n"}
+        ]
+      }
     ]
   }
 
   The total duration of the generated music should be approximately within the range specified in seconds.
-
+  Ensure the generated sheet music is creative, harmonically interesting, and playable.
   Do not include any other text, formatting, or markdown backticks in your response, only the valid JSON object.
 
   Mood: {{{mood}}}
@@ -66,8 +96,6 @@ const prompt = ai.definePrompt({
   {{#if feeling}}
   Feeling: {{{feeling}}}
   {{/if}}
-
-  Ensure the generated sheet music is creative, reflects the user's choices, and is playable.
   `
 });
 
