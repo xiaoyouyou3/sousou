@@ -1,0 +1,146 @@
+/**
+ * Core Philosophy: This ruleset enforces a strict user-ownership model where all
+ * user-generated data is private and accessible only by the user who created it.
+ * The security model is designed for simplicity, performance, and strong
+ * authorization guarantees.
+ *
+ * Data Structure: The data is organized hierarchically. All user-specific data,
+ * including musical scores (posts), is nested under a top-level `users`
+ * collection, like `/users/{userId}/posts/{postId}`. This structure inherently
+ * links data to its owner via the path.
+ *
+ * Key Security Decisions:
+ * - User Enumeration Disabled: Listing the top-level `/users` collection is
+ *   explicitly forbidden to protect user privacy and prevent data scraping.
+ * - Strict Ownership: A user has full control over their own document tree
+ *   (`/users/{userId}` and all subcollections) but has no access to any other
+ *   user's data.
+ * - Path-Based Security: Authorization relies on the `{userId}` wildcard in the
+ *   path, which is compared against the authenticated user's UID. This avoids
+ *   costly and slow `get()` calls to other documents for authorization checks.
+ *
+ * Denormalization for Authorization: The `Post` documents contain a `userId`
+ * field. The rules enforce that this field must match the `userId` in the document
+ * path upon creation and that it cannot be changed on update. This ensures
+ * data integrity and reinforces the ownership model.
+ *
+ * Structural Segregation: The entire data model is based on private, user-owned
+ * data. There are no public or shared collections, which simplifies the rules
+ * by removing the need to distinguish between public and private content within
+ * the same collection.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ------------------------------------------------------------------------
+    // Helper Functions
+    // ------------------------------------------------------------------------
+
+    /**
+     * Checks if the user is authenticated.
+     */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /**
+     * Checks if the currently authenticated user's UID matches the provided userId.
+     * This is the foundation of the user-ownership model.
+     * @param userId The user ID to check against the authenticated user's UID.
+     */
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    /**
+     * Verifies that a document already exists in Firestore.
+     * This is crucial for securing update and delete operations.
+     */
+    function isExistingDocument() {
+      return resource != null;
+    }
+
+    /**
+     * A secure convenience function that combines an ownership check with an
+     * existence check. This should be used for all update and delete operations
+     * to prevent modifying or deleting non-existent data.
+     * @param userId The user ID to check for ownership.
+     */
+    function isExistingOwner(userId) {
+      return isOwner(userId) && isExistingDocument();
+    }
+
+    /**
+     * Validates the integrity of a new User document upon creation.
+     * Ensures the internal 'id' field matches the document's path ID.
+     */
+    function hasValidUserCreateData(userId) {
+      return request.resource.data.id == userId;
+    }
+
+    /**
+     * Validates the immutability of critical User fields upon update.
+     * Prevents the internal 'id' from being changed after creation.
+     */
+    function hasValidUserUpdateData() {
+      return request.resource.data.id == resource.data.id;
+    }
+
+    /**
+     * Validates the integrity of a new Post document upon creation.
+     * Ensures the denormalized 'userId' field matches the owner's UID from the path.
+     */
+    function hasValidPostCreateData(userId) {
+      return request.resource.data.userId == userId;
+    }
+
+    /**
+     * Validates the immutability of critical Post fields upon update.
+     * Prevents the 'userId' from being changed, preserving ownership.
+     */
+    function hasValidPostUpdateData() {
+      return request.resource.data.userId == resource.data.userId;
+    }
+
+    // ------------------------------------------------------------------------
+    // Collection Rules
+    // ------------------------------------------------------------------------
+
+    /**
+     * @description Manages user profile documents. Users can create, read, update,
+     * and delete their own profile, but cannot see or list other users' profiles.
+     * @path /users/{userId}
+     * @allow (create) An authenticated user with UID 'user_abc' creating their
+     * own profile document at `/users/user_abc`.
+     * @deny (list) Any user, authenticated or not, attempting to list all
+     * documents in the `/users` collection.
+     * @principle Restricts access to a user's own data tree and prevents user enumeration.
+     */
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow list: if false;
+      allow create: if isOwner(userId) && hasValidUserCreateData(userId);
+      allow update: if isExistingOwner(userId) && hasValidUserUpdateData();
+      allow delete: if isExistingOwner(userId);
+
+      /**
+       * @description Secures user-generated musical scores (posts). A user has
+       * full create, read, update, and delete permissions for their own posts.
+       * @path /users/{userId}/posts/{postId}
+       * @allow (create) An authenticated user 'user_abc' creating a new post
+       * at `/users/user_abc/posts/post_123`.
+       * @deny (update) An authenticated user 'user_xyz' attempting to modify a post
+       * at `/users/user_abc/posts/post_123`.
+       * @principle Enforces document ownership for all operations within a user's private subcollection.
+       */
+      match /posts/{postId} {
+        allow get: if isOwner(userId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && hasValidPostCreateData(userId);
+        allow update: if isExistingOwner(userId) && hasValidPostUpdateData();
+        allow delete: if isExistingOwner(userId);
+      }
+    }
+  }
+}

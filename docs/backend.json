@@ -1,0 +1,113 @@
+{
+  "entities": {
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user of the TuneFlow application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the User entity."
+        },
+        "email": {
+          "type": "string",
+          "description": "User's email address.",
+          "format": "email"
+        }
+      },
+      "required": [
+        "id",
+        "email"
+      ]
+    },
+    "Post": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Post",
+      "type": "object",
+      "description": "Represents a user-generated musical score (post) in the TuneFlow application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Post entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:N Post)"
+        },
+        "mood": {
+          "type": "string",
+          "description": "The mood selected by the user when creating the score."
+        },
+        "genre": {
+          "type": "string",
+          "description": "The music genre selected by the user."
+        },
+        "score": {
+          "type": "string",
+          "description": "The generated music score data (e.g., Tone.js representation)."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp indicating when the score was created.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "mood",
+        "genre",
+        "score",
+        "createdAt"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user profile information. Uses path-based ownership for security. Includes denormalized userId for authorization independence.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/posts/{postId}",
+        "definition": {
+          "entityName": "Post",
+          "schema": {
+            "$ref": "#/backend/entities/Post"
+          },
+          "description": "Stores user-generated musical scores (posts). Uses path-based ownership for security. Includes denormalized userId for authorization independence.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user, matching the owner of the post."
+            },
+            {
+              "name": "postId",
+              "description": "The unique identifier of the musical score (post)."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore data structure is designed to store user profiles and user-generated music scores (posts). It prioritizes authorization independence and simplifies security rules by leveraging path-based ownership for user data. Each user has a dedicated collection for their posts, located at `/users/{userId}/posts/{postId}`. This structure inherently enforces ownership, as only the user with the matching `userId` can access the documents within their collection. This eliminates the need for complex `get()` calls in security rules, ensuring atomicity for operations and straightforward debugging. QAPs (Rules are not Filters) is ensured as access to posts are filtered based on the userId, which is available in `request.auth.uid`."
+  }
+}
