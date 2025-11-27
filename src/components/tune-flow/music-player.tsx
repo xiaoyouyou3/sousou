@@ -110,16 +110,8 @@ export default function MusicPlayer({ title, parts }: MusicPlayerProps) {
       setCurrentTime(currentSeconds);
       setProgress((currentSeconds / totalDuration) * 100);
       progressAnimationRef.current = requestAnimationFrame(updateProgress);
-    } else {
-        if (Tone.Transport.state !== 'started') {
-             // Ensure progress is 100% if song finishes but not perfectly on time
-            if (currentTime > totalDuration * 0.95) {
-                setProgress(100);
-                setCurrentTime(totalDuration);
-            }
-        }
     }
-  }, [totalDuration, currentTime]);
+  }, [totalDuration]);
 
 
   const setupTone = useCallback(async () => {
@@ -196,6 +188,8 @@ export default function MusicPlayer({ title, parts }: MusicPlayerProps) {
     Tone.Transport.schedule(time => {
         Tone.Draw.schedule(() => {
             setIsPlaying(false);
+            setCurrentTime(totalDuration);
+            setProgress(100);
         }, time);
     }, totalDuration);
     
@@ -284,7 +278,7 @@ export default function MusicPlayer({ title, parts }: MusicPlayerProps) {
             {isPlaying ? <Pause /> : <Play />}
             <span className="ml-2">{isPlaying ? '一時停止' : '再生'}</span>
           </Button>
-          <Button onClick={handleStop} size="lg" variant="outline" disabled={!isInitialized || !isPlaying}>
+          <Button onClick={handleStop} size="lg" variant="outline" disabled={!isInitialized || !isPlaying && Tone.Transport.state === 'stopped'}>
             <StopCircle />
           </Button>
           <Button onClick={handleRestart} size="lg" variant="outline" disabled={!isInitialized}>
