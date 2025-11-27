@@ -12,7 +12,7 @@ export default function Home() {
   const [error, setError] = useState<string | undefined>(undefined);
   const [formValues, setFormValues] = useState<Partial<GenerateSheetMusicInput>>({});
 
-  const handleFormSubmit = async (values: GenerateSheetMusicInput) => {
+  const handleFormSubmit = (values: GenerateSheetMusicInput) => {
     setMusicOutput(undefined);
     setError(undefined);
     setFormValues(values);
