@@ -3,8 +3,8 @@
 import { useState, useTransition, useEffect } from 'react';
 import * as Tone from 'tone';
 import { Music, LogOut, User as UserIcon, LogIn, Download } from 'lucide-react';
-import { MoodGenreForm } from '@/components/tune-flow/mood-genre-form';
-import MusicPlayer from '@/components/tune-flow/music-player';
+import { MoodGenreForm } from '@/components/sousou/mood-genre-form';
+import MusicPlayer from '@/components/sousou/music-player';
 import { generateSheetMusicFromMoodAndGenre, GenerateSheetMusicInput, GenerateSheetMusicOutput } from '@/ai/flows/generate-sheet-music-from-mood-and-genre';
 import { useUser, useAuth, useFirestore } from '@/firebase';
 import { useRouter } from 'next/navigation';
@@ -145,7 +145,7 @@ export default function Home() {
               <Music className="h-10 w-10 text-primary-foreground" />
             </div>
             <h1 className="font-headline text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
-              TuneFlow
+              SouSou
             </h1>
             <p className="mt-4 text-lg text-muted-foreground">
               気分や好きなジャンルから、あなただけのメロディーを奏でよう。

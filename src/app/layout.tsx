@@ -4,7 +4,7 @@ import { Toaster } from "@/components/ui/toaster"
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 
 export const metadata: Metadata = {
-  title: 'TuneFlow',
+  title: 'SouSou',
   description: '気分や好きなジャンルからAIで音楽を生成します。',
 };
 

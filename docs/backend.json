@@ -4,7 +4,7 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "User",
       "type": "object",
-      "description": "Represents a user of the TuneFlow application.",
+      "description": "Represents a user of the SouSou application.",
       "properties": {
         "id": {
           "type": "string",
@@ -25,7 +25,7 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Post",
       "type": "object",
-      "description": "Represents a user-generated musical score (post) in the TuneFlow application.",
+      "description": "Represents a user-generated musical score (post) in the SouSou application.",
       "properties": {
         "id": {
           "type": "string",
