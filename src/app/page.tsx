@@ -17,11 +17,21 @@ export default async function Home(
   let pageState: PageState = {};
 
   if (mood && genre) {
-    const result = await generateSheetMusicFromMoodAndGenre({ mood, genre });
-    if (result.sheetMusic) {
-      pageState = { sheetMusic: result.sheetMusic };
-    } else {
-      pageState = { error: '楽譜の生成に失敗しました。もう一度お試しください。' };
+    try {
+      const result = await generateSheetMusicFromMoodAndGenre({ mood, genre });
+      if (result.sheetMusic) {
+        pageState = { sheetMusic: result.sheetMusic };
+      } else {
+        pageState = { error: '楽譜の生成に失敗しました。もう一度お試しください。' };
+      }
+    } catch (e: any) {
+      console.error(e);
+      // Check for a specific overload error message
+      if (e.message && e.message.includes('503')) {
+        pageState = { error: '現在、AIモデルが大変混み合っています。しばらくしてから再度お試しください。' };
+      } else {
+        pageState = { error: '予期せぬエラーが発生しました。もう一度お試しください。' };
+      }
     }
   }
 
