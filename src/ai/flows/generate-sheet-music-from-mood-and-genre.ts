@@ -15,7 +15,9 @@ const GenerateSheetMusicInputSchema = z.object({
   mood: z.string().describe('The mood selected by the user (e.g., happy, sad, energetic).'),
   genre: z.string().describe('The music genre selected by the user (e.g., pop, classical, jazz).'),
   feeling: z.string().optional().describe('An optional text describing the user\'s current feeling.'),
-  duration: z.string().optional().describe('The desired duration range of the music in seconds (e.g., "15-30").'),
+  duration: z.string().optional().describe('The desired duration of this music segment in seconds (e.g., "15").'),
+  segmentIndex: z.number().optional().describe('The index of the current segment being generated.'),
+  totalSegments: z.number().optional().describe('The total number of segments that will be generated for the whole song.'),
 });
 export type GenerateSheetMusicInput = z.infer<typeof GenerateSheetMusicInputSchema>;
 
@@ -31,7 +33,7 @@ const InstrumentPartSchema = z.object({
 });
 
 const GenerateSheetMusicOutputSchema = z.object({
-  title: z.string().describe('A creative song title based on the user\'s input.'),
+  title: z.string().describe('A creative song title based on the user\'s input. This should be consistent across all segments.'),
   parts: z.array(InstrumentPartSchema).describe('An array of musical parts, one for each instrument. The number of instruments should be between 1 and 3, appropriate for the genre.'),
 });
 export type GenerateSheetMusicOutput = z.infer<typeof GenerateSheetMusicOutputSchema>;
@@ -46,7 +48,24 @@ const prompt = ai.definePrompt({
   output: {schema: GenerateSheetMusicOutputSchema},
   prompt: `You are a talented composer that creates multi-instrument sheet music for Tone.js.
 
-  Based on the user's mood, desired music genre, and their current feeling, generate a creative song title and sheet music for 1 to 3 instruments that are appropriate for the genre.
+  Based on the user's mood, desired music genre, and their current feeling, you will generate a segment of a song.
+  This is segment {{#if segmentIndex}}{{#math}}{{segmentIndex}} + 1{{/math}}{{else}}1{{/if}} of {{totalSegments}}.
+  
+  {{#ifEquals totalSegments 1}}
+  Create a complete musical piece with a clear beginning, middle, and end.
+  {{/ifEquals}}
+  {{#if gt totalSegments 1}}
+    {{#ifEquals segmentIndex 0}}
+    This is the INTRODUCTORY part of the song. Create an engaging opening.
+    {{else}}{{#ifEquals segmentIndex (sub totalSegments 1)}}
+    This is the FINAL part of the song. Create a resolving and conclusive ending.
+    {{else}}
+    This is a MIDDLE part of the song. Continue the musical idea from the previous part and build on it.
+    {{/ifEquals}}{{/ifEquals}}
+  {{/if}}
+
+  The title of the song should be creative and consistent across all segments.
+  Generate sheet music for 1 to 3 instruments that are appropriate for the genre.
   
   - For 'pop', use instruments like Synth, Bass, and Drums.
   - For 'classical', use instruments like Piano, Violin, and Cello.
@@ -63,36 +82,12 @@ const prompt = ai.definePrompt({
      - 'instrument': The name of the instrument.
      - 'notes': An array of note objects, each with 'time', 'note', and 'duration' properties.
 
-  Example of the expected output format:
-  {
-    "title": "Cosmic Jazz",
-    "parts": [
-      {
-        "instrument": "Piano",
-        "notes": [
-          {"time": "0:0", "note": "C4 E4 G4", "duration": "4n"},
-          {"time": "0:2", "note": "D4 F4 A4", "duration": "4n"}
-        ]
-      },
-      {
-        "instrument": "Bass",
-        "notes": [
-          {"time": "0:0", "note": "C2", "duration": "2n"},
-          {"time": "0:2", "note": "D2", "duration": "2n"}
-        ]
-      }
-    ]
-  }
-
-  The total duration of the generated music should be approximately within the range specified in seconds.
+  The total duration of THIS SEGMENT should be approximately {{{duration}}} seconds.
   Ensure the generated sheet music is creative, harmonically interesting, and playable. Avoid creating notes that are too short, which can cause clicking sounds. Ensure that for a single instrument, notes do not overlap in time.
   Do not include any other text, formatting, or markdown backticks in your response, only the valid JSON object.
 
   Mood: {{{mood}}}
   Genre: {{{genre}}}
-  {{#if duration}}
-  Duration: within {{{duration}}} seconds
-  {{/if}}
   {{#if feeling}}
   Feeling: {{{feeling}}}
   {{/if}}

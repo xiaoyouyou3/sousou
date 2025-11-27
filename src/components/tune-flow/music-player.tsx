@@ -10,7 +10,7 @@ import { Badge } from '../ui/badge';
 import { Progress } from '../ui/progress';
 
 type NoteEvent = {
-  time: string;
+  time: string | number; // Can now accept numbers from stitching
   note: string;
   duration: string;
 };
@@ -42,8 +42,9 @@ export default function MusicPlayer({ title, parts }: MusicPlayerProps) {
   const toneParts = useRef<Tone.Part[]>([]);
   const progressAnimationRef = useRef<number>();
 
-  const isValidTime = (time: string) => {
+  const isValidTime = (time: string | number) => {
     try {
+      if (typeof time === 'number') return time >= 0;
       return Tone.Time(time).toSeconds() >= 0;
     } catch {
       return false;
@@ -65,7 +66,7 @@ export default function MusicPlayer({ title, parts }: MusicPlayerProps) {
         notes: (part.notes || []).filter(
           n => 
             n && 
-            typeof n.time === 'string' &&
+            (typeof n.time === 'string' || typeof n.time === 'number') &&
             typeof n.note === 'string' &&
             typeof n.duration === 'string' &&
             isValidTime(n.time) &&
@@ -82,7 +83,8 @@ export default function MusicPlayer({ title, parts }: MusicPlayerProps) {
     try {
       validatedParts.forEach(part => {
         part.notes.forEach(note => {
-          const endTime = Tone.Time(note.time).toSeconds() + Tone.Time(note.duration).toSeconds();
+          const startTime = typeof note.time === 'number' ? note.time : Tone.Time(note.time).toSeconds();
+          const endTime = startTime + Tone.Time(note.duration).toSeconds();
           if (endTime > maxDuration) {
             maxDuration = endTime;
           }
@@ -151,7 +153,7 @@ export default function MusicPlayer({ title, parts }: MusicPlayerProps) {
             octaves: 8,
             oscillator: { type: 'sine' },
             envelope: { attack: 0.005, decay: 0.3, sustain: 0.01, release: 0.8, attackCurve: 'exponential' },
-            volume: -12
+            volume: -18
           }).toDestination();
           break;
         case 'bass':
@@ -160,14 +162,14 @@ export default function MusicPlayer({ title, parts }: MusicPlayerProps) {
             envelope: { attack: 0.01, decay: 0.1, sustain: 0.4, release: 1 },
             filterEnvelope: { attack: 0.02, decay: 0.1, sustain: 0.6, release: 1, baseFrequency: 60, octaves: 4 },
             filter: { Q: 2, type: 'lowpass', rolloff: -24 },
-            volume: -15
+            volume: -20
           }).toDestination();
           break;
         default: // For Piano, Synth, Guitar etc.
           synth = new Tone.PolySynth(Tone.Synth, {
             oscillator: { type: 'fmsine' },
             envelope: { attack: 0.02, decay: 0.2, sustain: 0.2, release: 0.5 },
-            volume: -18
+            volume: -24
           }).toDestination();
           break;
       }
@@ -196,7 +198,7 @@ export default function MusicPlayer({ title, parts }: MusicPlayerProps) {
 
     Tone.Transport.on('pause', () => {
         if (progressAnimationRef.current) {
-            cancelAnimationFrame(progressAnimation-ref.current);
+            cancelAnimationFrame(progressAnimationRef.current);
         }
         setIsPlaying(false);
     });
