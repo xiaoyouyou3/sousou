@@ -16,6 +16,9 @@ import {
   Sparkles,
   Leaf,
   Castle,
+  Clock3,
+  Clock8,
+  Clock,
 } from 'lucide-react';
 
 export type Option = {
@@ -44,4 +47,10 @@ export const genres: Option[] = [
   { value: 'ambient', label: 'アンビエント', Icon: Waves },
   { value: 'lo-fi', label: 'ローファイ', Icon: Leaf },
   { value: 'sci-fi', label: 'SF', Icon: Rocket },
+];
+
+export const durations: Option[] = [
+    { value: '15', label: '短い', Icon: Clock3 },
+    { value: '30', label: '普通', Icon: Clock8 },
+    { value: '60', label: '長い', Icon: Clock },
 ];

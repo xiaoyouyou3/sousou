@@ -15,6 +15,7 @@ const GenerateSheetMusicInputSchema = z.object({
   mood: z.string().describe('The mood selected by the user (e.g., happy, sad, energetic).'),
   genre: z.string().describe('The music genre selected by the user (e.g., pop, classical, jazz).'),
   feeling: z.string().optional().describe('An optional text describing the user\'s current feeling.'),
+  duration: z.string().optional().describe('The desired duration of the music in seconds.'),
 });
 export type GenerateSheetMusicInput = z.infer<typeof GenerateSheetMusicInputSchema>;
 
@@ -34,11 +35,15 @@ const prompt = ai.definePrompt({
   prompt: `You are a composer that specializes in creating sheet music with Tone.js.
 
   Based on the user's mood, desired music genre, and their current feeling, generate sheet music that reflects their choices. Return the sheet music in a valid JSON format that is compatible with Tone.js.
+  The total duration of the generated music should be approximately the number of seconds specified.
 
   Do not include any other text or formatting in your response, only the JSON object.
 
   Mood: {{{mood}}}
   Genre: {{{genre}}}
+  {{#if duration}}
+  Duration: {{{duration}}} seconds
+  {{/if}}
   {{#if feeling}}
   Feeling: {{{feeling}}}
   {{/if}}

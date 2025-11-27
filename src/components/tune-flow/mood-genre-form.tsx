@@ -10,13 +10,14 @@ import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { moods, genres } from '@/lib/tuneflow-data';
+import { moods, genres, durations } from '@/lib/tuneflow-data';
 import { WandSparkles } from 'lucide-react';
 import { Textarea } from '../ui/textarea';
 
 const FormSchema = z.object({
   mood: z.string({ required_error: '気分を選択してください。' }),
   genre: z.string({ required_error: 'ジャンルを選択してください。' }),
+  duration: z.string({ required_error: '再生時間を選択してください。'}),
   feeling: z.string().optional(),
 });
 
@@ -32,6 +33,7 @@ export function MoodGenreForm({ defaultValues }: { defaultValues?: Partial<FormV
     defaultValues: {
       mood: defaultValues?.mood || '',
       genre: defaultValues?.genre || '',
+      duration: defaultValues?.duration || '30',
       feeling: defaultValues?.feeling || '',
     },
   });
@@ -41,6 +43,7 @@ export function MoodGenreForm({ defaultValues }: { defaultValues?: Partial<FormV
       const params = new URLSearchParams(searchParams);
       params.set('mood', data.mood);
       params.set('genre', data.genre);
+      params.set('duration', data.duration);
       if (data.feeling) {
         params.set('feeling', data.feeling);
       } else {
@@ -58,7 +61,7 @@ export function MoodGenreForm({ defaultValues }: { defaultValues?: Partial<FormV
       <CardContent>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
               <FormField
                 control={form.control}
                 name="mood"
@@ -100,6 +103,33 @@ export function MoodGenreForm({ defaultValues }: { defaultValues?: Partial<FormV
                       </FormControl>
                       <SelectContent>
                         {genres.map(({ value, label, Icon }) => (
+                          <SelectItem key={value} value={value}>
+                            <div className="flex items-center gap-2">
+                              <Icon className="h-4 w-4 text-muted-foreground" />
+                              <span>{label}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="duration"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>再生時間</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="曲の長さを選択" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {durations.map(({ value, label, Icon }) => (
                           <SelectItem key={value} value={value}>
                             <div className="flex items-center gap-2">
                               <Icon className="h-4 w-4 text-muted-foreground" />

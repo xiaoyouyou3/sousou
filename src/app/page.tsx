@@ -13,14 +13,14 @@ type PageState = {
 export default async function Home(
   { searchParams }: { searchParams: GenerateSheetMusicInput & { state?: string } }
 ) {
-  const { mood, genre, feeling } = searchParams;
+  const { mood, genre, feeling, duration } = searchParams;
   let pageState: PageState = {};
   let isGenerating = false;
 
-  if (mood && genre) {
+  if (mood && genre && duration) {
     isGenerating = true;
     try {
-      const result = await generateSheetMusicFromMoodAndGenre({ mood, genre, feeling });
+      const result = await generateSheetMusicFromMoodAndGenre({ mood, genre, feeling, duration });
       if (result.sheetMusic) {
         pageState = { sheetMusic: result.sheetMusic };
       } else {
@@ -53,7 +53,7 @@ export default async function Home(
           </p>
         </header>
 
-        <MoodGenreForm defaultValues={{ mood, genre, feeling }} />
+        <MoodGenreForm defaultValues={{ mood, genre, feeling, duration }} />
 
         {isGenerating && !pageState.sheetMusic && !pageState.error && (
             <div className="flex flex-col items-center justify-center rounded-lg border bg-card p-8 text-center shadow-sm">
