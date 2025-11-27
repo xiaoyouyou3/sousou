@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import * as Tone from 'tone';
 import { Play, Pause, StopCircle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -79,58 +79,71 @@ export default function MusicPlayer({ sheetMusic }: { sheetMusic: string }) {
     }
   }, [notes]);
 
+  const setupTone = useCallback(async () => {
+    if (notes.length === 0 || synth.current || part.current) return;
+    
+    await Tone.start();
+    
+    synth.current = new Tone.PolySynth(Tone.Synth, {
+        oscillator: { type: 'fmsquare' },
+        envelope: { attack: 0.01, decay: 0.1, sustain: 0.3, release: 1 },
+    }).toDestination();
+    
+    part.current = new Tone.Part<NoteEvent>((time, note) => {
+      if (note.note) {
+          synth.current?.triggerAttackRelease(note.note, note.duration, time);
+      }
+      Tone.Draw.schedule(() => {
+        const index = notes.findIndex(n => n.time === note.time && n.note === note.note);
+        setCurrentNoteIndex(index);
+      }, time);
+    }, notes).start(0);
+
+    part.current.loop = false;
+
+    Tone.Transport.on('stop', () => {
+      setIsPlaying(false);
+      setCurrentNoteIndex(-1);
+    });
+
+    Tone.Transport.on('pause', () => {
+      setIsPlaying(false);
+    });
+
+    Tone.Transport.on('start', () => {
+      setIsPlaying(true);
+    });
+    
+    setIsReady(true);
+  }, [notes]);
+
   useEffect(() => {
-    if(notes.length === 0) return;
-
-    const initTone = async () => {
-      await Tone.start();
-      
-      synth.current = new Tone.PolySynth(Tone.Synth, {
-          oscillator: { type: 'fmsquare' },
-          envelope: { attack: 0.01, decay: 0.1, sustain: 0.3, release: 1 },
-      }).toDestination();
-      
-      part.current = new Tone.Part<NoteEvent>((time, note) => {
-        if (note.note) { // Play note only if it's valid
-            synth.current?.triggerAttackRelease(note.note, note.duration, time);
-        }
-        Tone.Draw.schedule(() => {
-          const index = notes.findIndex(n => n.time === note.time && n.note === note.note);
-          setCurrentNoteIndex(index);
-        }, time);
-      }, notes).start(0);
-
-      part.current.loop = false;
-
-      Tone.Transport.on('stop', () => {
-        setIsPlaying(false);
-        setCurrentNoteIndex(-1);
-      });
-
-      Tone.Transport.on('pause', () => {
-        setIsPlaying(false);
-      });
-
-      Tone.Transport.on('start', () => {
-        setIsPlaying(true);
-      });
-      
-      setIsReady(true);
-    };
-
-    initTone();
+    // Only setup if notes are available.
+    // The actual start of Tone is deferred until user interaction.
+    if (notes.length > 0 && !isReady) {
+      // We don't call setupTone() here directly to avoid auto-playing sound.
+      // We will call it on the first play action.
+    }
 
     return () => {
-      Tone.Transport.stop();
+      if (Tone.Transport.state !== 'stopped') {
+        Tone.Transport.stop();
+      }
       Tone.Transport.cancel();
       part.current?.dispose();
       synth.current?.dispose();
+      part.current = null;
+      synth.current = null;
+      setIsReady(false);
     };
-  }, [notes]);
+  }, [notes, isReady]);
 
-  const handlePlayPause = () => {
-    if (!isReady) return;
-    if (isPlaying) {
+  const handlePlayPause = async () => {
+    if (!isReady) {
+      await setupTone();
+    }
+
+    if (Tone.Transport.state === 'started') {
       Tone.Transport.pause();
     } else {
       Tone.Transport.start();
@@ -142,8 +155,10 @@ export default function MusicPlayer({ sheetMusic }: { sheetMusic: string }) {
     Tone.Transport.stop();
   };
 
-  const handleRestart = () => {
-    if (!isReady) return;
+  const handleRestart = async () => {
+    if (!isReady) {
+      await setupTone();
+    }
     Tone.Transport.stop();
     Tone.Transport.start();
   }
@@ -195,14 +210,14 @@ export default function MusicPlayer({ sheetMusic }: { sheetMusic: string }) {
           </svg>
         </div>
         <div className="flex items-center justify-center space-x-4">
-          <Button onClick={handlePlayPause} size="lg" disabled={!isReady} className="w-28">
+          <Button onClick={handlePlayPause} size="lg" className="w-28">
             {isPlaying ? <Pause /> : <Play />}
             <span className="ml-2">{isPlaying ? '一時停止' : '再生'}</span>
           </Button>
-          <Button onClick={handleStop} size="lg" variant="outline" disabled={!isReady}>
+          <Button onClick={handleStop} size="lg" variant="outline" disabled={!isReady && !isPlaying}>
             <StopCircle />
           </Button>
-          <Button onClick={handleRestart} size="lg" variant="outline" disabled={!isReady}>
+          <Button onClick={handleRestart} size="lg" variant="outline" disabled={!isReady && !isPlaying}>
             <RefreshCw />
           </Button>
         </div>
