@@ -20,7 +20,7 @@ const GenerateSheetMusicInputSchema = z.object({
 export type GenerateSheetMusicInput = z.infer<typeof GenerateSheetMusicInputSchema>;
 
 const GenerateSheetMusicOutputSchema = z.object({
-  sheetMusic: z.string().describe('The generated sheet music in a format compatible with Tone.js. This should be a JSON string.'),
+  sheetMusic: z.string().describe('The generated sheet music in a format compatible with Tone.js. This should be a JSON string representing an array of note objects, like `[{"time": "0:0", "note": "C4", "duration": "8n"}]`.'),
 });
 export type GenerateSheetMusicOutput = z.infer<typeof GenerateSheetMusicOutputSchema>;
 
@@ -34,10 +34,14 @@ const prompt = ai.definePrompt({
   output: {schema: GenerateSheetMusicOutputSchema},
   prompt: `You are a composer that specializes in creating sheet music with Tone.js.
 
-  Based on the user's mood, desired music genre, and their current feeling, generate sheet music that reflects their choices. Return the sheet music in a valid JSON format that is compatible with Tone.js.
+  Based on the user's mood, desired music genre, and their current feeling, generate sheet music that reflects their choices. 
+  
+  Return the sheet music as a valid JSON string. The JSON should be an array of objects, where each object represents a note and has 'time', 'note', and 'duration' properties.
+  Example: \`{"sheetMusic": "[{\\"time\\": \\"0:0\\", \\"note\\": \\"C4\\", \\"duration\\": \\"8n\\"}]"}\`
+
   The total duration of the generated music should be approximately the number of seconds specified.
 
-  Do not include any other text or formatting in your response, only the JSON object.
+  Do not include any other text, formatting, or markdown backticks in your response, only the JSON object.
 
   Mood: {{{mood}}}
   Genre: {{{genre}}}

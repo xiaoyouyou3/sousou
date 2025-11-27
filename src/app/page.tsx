@@ -1,42 +1,42 @@
-'use server';
+'use client';
 
+import { useState } from 'react';
 import { Music } from 'lucide-react';
 import { MoodGenreForm } from '@/components/tune-flow/mood-genre-form';
 import MusicPlayer from '@/components/tune-flow/music-player';
 import { generateSheetMusicFromMoodAndGenre, GenerateSheetMusicInput } from '@/ai/flows/generate-sheet-music-from-mood-and-genre';
 
-type PageState = {
-  sheetMusic?: string;
-  error?: string;
-};
+export default function Home() {
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [sheetMusic, setSheetMusic] = useState<string | undefined>(undefined);
+  const [error, setError] = useState<string | undefined>(undefined);
+  const [formValues, setFormValues] = useState<Partial<GenerateSheetMusicInput>>({});
 
-export default async function Home(
-  { searchParams }: { searchParams: GenerateSheetMusicInput & { state?: string } }
-) {
-  const { mood, genre, feeling, duration } = searchParams;
-  let pageState: PageState = {};
-  let isGenerating = false;
+  const handleFormSubmit = async (values: GenerateSheetMusicInput) => {
+    setIsGenerating(true);
+    setSheetMusic(undefined);
+    setError(undefined);
+    setFormValues(values);
 
-  if (mood && genre && duration) {
-    isGenerating = true;
     try {
-      const result = await generateSheetMusicFromMoodAndGenre({ mood, genre, feeling, duration });
+      const result = await generateSheetMusicFromMoodAndGenre(values);
       if (result.sheetMusic) {
-        pageState = { sheetMusic: result.sheetMusic };
+        setSheetMusic(result.sheetMusic);
       } else {
-        pageState = { error: '楽譜の生成に失敗しました。もう一度お試しください。' };
+        setError('楽譜の生成に失敗しました。もう一度お試しください。');
       }
     } catch (e: any) {
       console.error(e);
-      // Check for a specific overload error message
-      if (e.message && e.message.includes('503')) {
-        pageState = { error: '現在、AIモデルが大変混み合っています。しばらくしてから再度お試しください。' };
+      if (e.message && (e.message.includes('503') || e.message.includes('overloaded'))) {
+        setError('現在、AIモデルが大変混み合っています。しばらくしてから再度お試しください。');
       } else {
-        pageState = { error: '予期せぬエラーが発生しました。もう一度お試しください。' };
+        setError('予期せぬエラーが発生しました。もう一度お試しください。');
       }
+    } finally {
+      setIsGenerating(false);
     }
-    isGenerating = false;
-  }
+  };
+
 
   return (
     <main className="flex min-h-screen w-full flex-col items-center justify-center p-4 sm:p-8">
@@ -53,9 +53,13 @@ export default async function Home(
           </p>
         </header>
 
-        <MoodGenreForm defaultValues={{ mood, genre, feeling, duration }} />
+        <MoodGenreForm 
+          defaultValues={formValues} 
+          isGenerating={isGenerating} 
+          onSubmit={handleFormSubmit} 
+        />
 
-        {isGenerating && !pageState.sheetMusic && !pageState.error && (
+        {isGenerating && (
             <div className="flex flex-col items-center justify-center rounded-lg border bg-card p-8 text-center shadow-sm">
                 <div className="flex items-center space-x-2 text-muted-foreground">
                     <div className="h-5 w-5 animate-spin rounded-full border-b-2 border-primary"></div>
@@ -64,13 +68,13 @@ export default async function Home(
             </div>
         )}
 
-        {pageState.error && (
+        {error && !isGenerating && (
           <div className="rounded-lg border border-destructive/50 bg-card p-8 text-center text-destructive shadow-sm">
-            <p>{pageState.error}</p>
+            <p>{error}</p>
           </div>
         )}
         
-        {pageState.sheetMusic && <MusicPlayer sheetMusic={pageState.sheetMusic} />}
+        {sheetMusic && !isGenerating && <MusicPlayer sheetMusic={sheetMusic} />}
       </div>
     </main>
   );

@@ -3,8 +3,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { useTransition } from 'react';
+import { useEffect } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -23,35 +22,34 @@ const FormSchema = z.object({
 
 type FormValues = z.infer<typeof FormSchema>;
 
-export function MoodGenreForm({ defaultValues }: { defaultValues?: Partial<FormValues> }) {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const [isPending, startTransition] = useTransition();
+interface MoodGenreFormProps {
+  defaultValues?: Partial<FormValues>;
+  isGenerating: boolean;
+  onSubmit: (values: FormValues) => void;
+}
 
+export function MoodGenreForm({ defaultValues, isGenerating, onSubmit }: MoodGenreFormProps) {
   const form = useForm<FormValues>({
     resolver: zodResolver(FormSchema),
     defaultValues: {
-      mood: defaultValues?.mood || '',
-      genre: defaultValues?.genre || '',
-      duration: defaultValues?.duration || '30',
-      feeling: defaultValues?.feeling || '',
+      mood: '',
+      genre: '',
+      duration: '30',
+      feeling: '',
+      ...defaultValues,
     },
   });
 
-  function onSubmit(data: FormValues) {
-    startTransition(() => {
-      const params = new URLSearchParams(searchParams);
-      params.set('mood', data.mood);
-      params.set('genre', data.genre);
-      params.set('duration', data.duration);
-      if (data.feeling) {
-        params.set('feeling', data.feeling);
-      } else {
-        params.delete('feeling');
-      }
-      router.push(`/?${params.toString()}`);
+  useEffect(() => {
+    form.reset({
+      mood: '',
+      genre: '',
+      duration: '30',
+      feeling: '',
+      ...defaultValues
     });
-  }
+  }, [defaultValues, form]);
+
 
   return (
     <Card className="w-full shadow-lg">
@@ -68,7 +66,7 @@ export function MoodGenreForm({ defaultValues }: { defaultValues?: Partial<FormV
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>気分</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="どんな気分ですか？" />
@@ -95,7 +93,7 @@ export function MoodGenreForm({ defaultValues }: { defaultValues?: Partial<FormV
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>ジャンル</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="音楽のスタイルを選択" />
@@ -122,7 +120,7 @@ export function MoodGenreForm({ defaultValues }: { defaultValues?: Partial<FormV
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>再生時間</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="曲の長さを選択" />
@@ -165,8 +163,8 @@ export function MoodGenreForm({ defaultValues }: { defaultValues?: Partial<FormV
               )}
             />
             <div className="pt-2">
-              <Button type="submit" className="w-full" size="lg" disabled={isPending}>
-                {isPending ? (
+              <Button type="submit" className="w-full" size="lg" disabled={isGenerating}>
+                {isGenerating ? (
                   <>
                     <div className="mr-2 h-4 w-4 animate-spin rounded-full border-b-2 border-primary-foreground"></div>
                     生成中...
