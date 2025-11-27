@@ -8,7 +8,7 @@
  * - GenerateSheetMusicOutput - The return type for the generateSheetMusicFromMoodAndGenre function.
  */
 
-import {ai} from '@/ai/genkit';
+import {ai, definePrompt} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const GenerateSheetMusicInputSchema = z.object({
@@ -42,19 +42,19 @@ export async function generateSheetMusicFromMoodAndGenre(input: GenerateSheetMus
   return generateSheetMusicFromMoodAndGenreFlow(input);
 }
 
-const prompt = ai.definePrompt({
+const prompt = definePrompt({
   name: 'generateSheetMusicPrompt',
   input: {schema: GenerateSheetMusicInputSchema},
   output: {schema: GenerateSheetMusicOutputSchema},
   prompt: `You are a talented composer that creates multi-instrument sheet music for Tone.js.
 
   Based on the user's mood, desired music genre, and their current feeling, you will generate a segment of a song.
-  This is segment {{#if segmentIndex}}{{#math}}{{segmentIndex}} + 1{{/math}}{{else}}1{{/if}} of {{totalSegments}}.
+  This is segment {{#math}}{{segmentIndex}} + 1{{/math}} of {{totalSegments}}.
   
   {{#ifEquals totalSegments 1}}
   Create a complete musical piece with a clear beginning, middle, and end.
   {{/ifEquals}}
-  {{#if gt totalSegments 1}}
+  {{#if (gt totalSegments 1)}}
     {{#ifEquals segmentIndex 0}}
     This is the INTRODUCTORY part of the song. Create an engaging opening.
     {{else}}{{#ifEquals segmentIndex (math totalSegments '-' 1)}}
