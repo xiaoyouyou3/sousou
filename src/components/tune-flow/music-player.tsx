@@ -21,6 +21,7 @@ const NOTE_RADIUS = LINE_HEIGHT / 2 - 1;
 
 // Maps a note name (e.g., C4, F#5) to a Y position on the staff
 function noteToY(note: string): number {
+  if (!note) return 0; // Add a guard clause for safety
   const noteName = note.slice(0, -1).toUpperCase();
   const octave = parseInt(note.slice(-1), 10);
   const noteWithoutAccidental = noteName.charAt(0);
@@ -47,13 +48,16 @@ export default function MusicPlayer({ sheetMusic }: { sheetMusic: string }) {
     try {
       // The AI might return a string which is a JSON object with a key.
       const parsed = JSON.parse(sheetMusic);
+      let noteData: any[];
       if (parsed.sheetMusic && Array.isArray(parsed.sheetMusic)) {
-        return parsed.sheetMusic;
+        noteData = parsed.sheetMusic;
+      } else if (Array.isArray(parsed)) {
+        noteData = parsed;
+      } else {
+        noteData = [];
       }
-      if (Array.isArray(parsed)) {
-        return parsed;
-      }
-      return [];
+      // Filter out any invalid notes
+      return noteData.filter(n => n && typeof n.time === 'string' && typeof n.note === 'string' && typeof n.duration === 'string');
     } catch (e) {
       console.error("Failed to parse sheet music:", e);
       toast({
@@ -67,8 +71,12 @@ export default function MusicPlayer({ sheetMusic }: { sheetMusic: string }) {
 
   const totalDuration = useMemo(() => {
     if (notes.length === 0) return 0;
-    const lastNote = notes[notes.length - 1];
-    return Tone.Time(lastNote.time).toSeconds() + Tone.Time(lastNote.duration).toSeconds();
+    try {
+      const lastNote = notes[notes.length - 1];
+      return Tone.Time(lastNote.time).toSeconds() + Tone.Time(lastNote.duration).toSeconds();
+    } catch {
+      return 0;
+    }
   }, [notes]);
 
   useEffect(() => {
@@ -83,7 +91,9 @@ export default function MusicPlayer({ sheetMusic }: { sheetMusic: string }) {
       }).toDestination();
       
       part.current = new Tone.Part<NoteEvent>((time, note) => {
-        synth.current?.triggerAttackRelease(note.note, note.duration, time);
+        if (note.note) { // Play note only if it's valid
+            synth.current?.triggerAttackRelease(note.note, note.duration, time);
+        }
         Tone.Draw.schedule(() => {
           const index = notes.findIndex(n => n.time === note.time && n.note === note.note);
           setCurrentNoteIndex(index);
@@ -159,6 +169,7 @@ export default function MusicPlayer({ sheetMusic }: { sheetMusic: string }) {
 
               {/* Notes */}
               {notes.map((note, index) => {
+                if (!note || !note.note || !note.time || totalDuration === 0) return null;
                 const x = (Tone.Time(note.time).toSeconds() / totalDuration) * (viewWidth - 40) + 20;
                 const y = noteToY(note.note);
                 const isCurrent = index === currentNoteIndex;
