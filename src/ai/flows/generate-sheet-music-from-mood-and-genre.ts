@@ -8,7 +8,7 @@
  * - GenerateSheetMusicOutput - The return type for the generateSheetMusicFromMoodAndGenre function.
  */
 
-import {ai, definePrompt} from '@/ai/genkit';
+import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const GenerateSheetMusicInputSchema = z.object({
@@ -42,10 +42,10 @@ export async function generateSheetMusicFromMoodAndGenre(input: GenerateSheetMus
   return generateSheetMusicFromMoodAndGenreFlow(input);
 }
 
-const prompt = definePrompt({
+const prompt = ai.definePrompt({
   name: 'generateSheetMusicPrompt',
-  input: {schema: GenerateSheetMusicInputSchema},
-  output: {schema: GenerateSheetMusicOutputSchema},
+  inputSchema: GenerateSheetMusicInputSchema,
+  outputSchema: GenerateSheetMusicOutputSchema,
   prompt: `You are a talented composer that creates multi-instrument sheet music for Tone.js.
 
   Based on the user's mood, desired music genre, and their current feeling, you will generate a segment of a song.

@@ -1,10 +1,10 @@
-import {genkit, Plugin, definePrompt as coreDefinePrompt, PromptOptions} from 'genkit';
+import {genkit, Plugin, definePrompt as coreDefinePrompt, PromptOptions, MessageData, GenerationCommonUsage, z} from 'genkit';
 import {googleAI} from '@genkit-ai/google-genai';
 import Handlebars from 'handlebars';
 
 // Define and register the 'math' helper
 const handlebars = Handlebars.create();
-handlebars.registerHelper('math', function(lvalue, operator, rvalue, options) {
+handlebars.registerHelper('math', function(lvalue, operator, rvalue) {
     lvalue = parseFloat(lvalue);
     rvalue = parseFloat(rvalue);
         
@@ -16,6 +16,13 @@ handlebars.registerHelper('math', function(lvalue, operator, rvalue, options) {
         "%": lvalue % rvalue
     }[operator];
 });
+handlebars.registerHelper('ifEquals', function<T>(this: T, arg1, arg2, options) {
+  return (arg1 == arg2) ? options.fn(this) : options.inverse(this);
+});
+handlebars.registerHelper('gt', function<T>(this: T, arg1, arg2, options) {
+  return (arg1 > arg2) ? options.fn(this) : options.inverse(this);
+});
+
 
 // Custom definePrompt wrapper that uses our Handlebars instance
 export function definePrompt<
@@ -35,7 +42,7 @@ export function definePrompt<
       source: options.prompt!,
     },
     prompt: undefined, // prompt is now passed via template
-  });
+  }) as any;
 }
 
 
