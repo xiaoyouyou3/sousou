@@ -1,7 +1,7 @@
 'use server';
 
 /**
- * @fileOverview Generates sheet music based on the selected mood, genre, and optional feeling.
+ * @fileOverview Generates sheet music and a title based on the selected mood, genre, and optional feeling.
  *
  * - generateSheetMusicFromMoodAndGenre - A function that handles the sheet music generation process.
  * - GenerateSheetMusicInput - The input type for the generateSheetMusicFromMoodAndGenre function.
@@ -26,6 +26,7 @@ const NoteSchema = z.object({
 });
 
 const GenerateSheetMusicOutputSchema = z.object({
+  title: z.string().describe('A creative song title based on the user\'s input.'),
   sheetMusic: z.array(NoteSchema).describe('The generated sheet music as an array of note objects, compatible with Tone.js.'),
 });
 export type GenerateSheetMusicOutput = z.infer<typeof GenerateSheetMusicOutputSchema>;
@@ -40,11 +41,12 @@ const prompt = ai.definePrompt({
   output: {schema: GenerateSheetMusicOutputSchema},
   prompt: `You are a composer that specializes in creating sheet music with Tone.js.
 
-  Based on the user's mood, desired music genre, and their current feeling, generate sheet music that reflects their choices. 
+  Based on the user's mood, desired music genre, and their current feeling, generate a creative song title and sheet music that reflects their choices. 
   
-  Return the sheet music as a valid JSON object. The JSON should contain a 'sheetMusic' key with an array of note objects. Each object must have 'time', 'note', and 'duration' properties.
+  Return the title and sheet music as a valid JSON object. The JSON should contain a 'title' key and a 'sheetMusic' key with an array of note objects. Each object must have 'time', 'note', and 'duration' properties.
   Example of the expected output format:
   {
+    "title": "Sunrise Over the City",
     "sheetMusic": [
       {"time": "0:0", "note": "C4", "duration": "8n"},
       {"time": "0:1", "note": "E4", "duration": "8n"},

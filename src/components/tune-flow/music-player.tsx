@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import * as Tone from 'tone';
 import { Play, Pause, StopCircle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 
 type NoteEvent = {
@@ -12,6 +12,11 @@ type NoteEvent = {
   note: string;
   duration: string;
 };
+
+interface MusicPlayerProps {
+  title: string;
+  sheetMusic: NoteEvent[];
+}
 
 const NOTE_ORDER = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
 const STAFF_LINES = 5;
@@ -37,7 +42,7 @@ function noteToY(note: string): number {
 }
 
 
-export default function MusicPlayer({ sheetMusic }: { sheetMusic: NoteEvent[] }) {
+export default function MusicPlayer({ title, sheetMusic }: MusicPlayerProps) {
   const { toast } = useToast();
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentNoteIndex, setCurrentNoteIndex] = useState(-1);
@@ -69,8 +74,10 @@ export default function MusicPlayer({ sheetMusic }: { sheetMusic: NoteEvent[] })
     }
   }, [notes]);
   
-  const setupTone = useCallback(() => {
-    if (notes.length === 0) return;
+  const setupTone = useCallback(async () => {
+    if (notes.length === 0 || synth.current) return;
+    
+    await Tone.start();
 
     synth.current = new Tone.PolySynth(Tone.Synth, {
       oscillator: { type: 'fmsquare' },
@@ -102,6 +109,7 @@ export default function MusicPlayer({ sheetMusic }: { sheetMusic: NoteEvent[] })
       setIsPlaying(true);
     });
     
+    setIsInitialized(true);
   }, [notes]);
 
   useEffect(() => {
@@ -121,15 +129,10 @@ export default function MusicPlayer({ sheetMusic }: { sheetMusic: NoteEvent[] })
   }, [sheetMusic]);
 
   const handlePlayPause = async () => {
-    if (Tone.context.state !== 'running') {
-      await Tone.start();
+    if (!isInitialized) {
+      await setupTone();
     }
     
-    if (!isInitialized) {
-      setupTone();
-      setIsInitialized(true);
-    }
-
     if (Tone.Transport.state === 'started') {
       Tone.Transport.pause();
     } else {
@@ -143,12 +146,8 @@ export default function MusicPlayer({ sheetMusic }: { sheetMusic: NoteEvent[] })
   };
 
   const handleRestart = async () => {
-    if (Tone.context.state !== 'running') {
-      await Tone.start();
-    }
     if (!isInitialized) {
-      setupTone();
-      setIsInitialized(true);
+      await setupTone();
     }
     Tone.Transport.stop();
     Tone.Transport.start();
@@ -162,7 +161,8 @@ export default function MusicPlayer({ sheetMusic }: { sheetMusic: NoteEvent[] })
   return (
     <Card className="shadow-lg">
       <CardHeader>
-        <CardTitle className="text-2xl font-headline">生成された楽譜</CardTitle>
+        <CardTitle className="text-2xl font-headline">生成された楽曲</CardTitle>
+        <CardDescription className="text-lg font-semibold text-primary">{title}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="w-full overflow-x-auto rounded-lg border bg-background/50 p-4">

@@ -4,37 +4,32 @@ import { useState } from 'react';
 import { Music } from 'lucide-react';
 import { MoodGenreForm } from '@/components/tune-flow/mood-genre-form';
 import MusicPlayer from '@/components/tune-flow/music-player';
-import { generateSheetMusicFromMoodAndGenre, GenerateSheetMusicInput } from '@/ai/flows/generate-sheet-music-from-mood-and-genre';
-
-type NoteEvent = {
-  time: string;
-  note: string;
-  duration: string;
-};
+import { generateSheetMusicFromMoodAndGenre, GenerateSheetMusicInput, GenerateSheetMusicOutput } from '@/ai/flows/generate-sheet-music-from-mood-and-genre';
 
 export default function Home() {
   const [isGenerating, setIsGenerating] = useState(false);
-  const [sheetMusic, setSheetMusic] = useState<NoteEvent[] | undefined>(undefined);
+  const [musicOutput, setMusicOutput] = useState<GenerateSheetMusicOutput | undefined>(undefined);
   const [error, setError] = useState<string | undefined>(undefined);
   const [formValues, setFormValues] = useState<Partial<GenerateSheetMusicInput>>({});
 
   const handleFormSubmit = async (values: GenerateSheetMusicInput) => {
     setIsGenerating(true);
-    setSheetMusic(undefined);
+    setMusicOutput(undefined);
     setError(undefined);
     setFormValues(values);
 
     try {
       const result = await generateSheetMusicFromMoodAndGenre(values);
-      if (result.sheetMusic) {
-        setSheetMusic(result.sheetMusic);
+      if (result.sheetMusic && result.title) {
+        setMusicOutput(result);
       } else {
         setError('楽譜の生成に失敗しました。もう一度お試しください。');
       }
     } catch (e: any) {
       console.error(e);
-      if (e.message && (e.message.includes('503') || e.message.toLowerCase().includes('overloaded') || e.message.toLowerCase().includes('service unavailable'))) {
-        setError('現在、AIモデルが大変混み合っています。しばらくしてから再度お試しください。');
+      const errorMessage = e.message || '';
+      if (errorMessage.includes('503') || errorMessage.toLowerCase().includes('overloaded') || errorMessage.toLowerCase().includes('service unavailable') || errorMessage.toLowerCase().includes('timed out')) {
+        setError('現在、AIモデルが大変混み合っているか、応答に時間がかかりすぎています。しばらくしてから再度お試しください。');
       } else {
         setError('予期せぬエラーが発生しました。もう一度お試しください。');
       }
@@ -80,7 +75,9 @@ export default function Home() {
           </div>
         )}
         
-        {sheetMusic && !isGenerating && <MusicPlayer sheetMusic={sheetMusic} />}
+        {musicOutput && musicOutput.sheetMusic && musicOutput.title && !isGenerating && (
+          <MusicPlayer title={musicOutput.title} sheetMusic={musicOutput.sheetMusic} />
+        )}
       </div>
     </main>
   );
