@@ -1,11 +1,17 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useEffect } from 'react';
 import * as Tone from 'tone';
-import { Music } from 'lucide-react';
+import { Music, LogOut, User as UserIcon, LogIn, Download } from 'lucide-react';
 import { MoodGenreForm } from '@/components/tune-flow/mood-genre-form';
 import MusicPlayer from '@/components/tune-flow/music-player';
 import { generateSheetMusicFromMoodAndGenre, GenerateSheetMusicInput, GenerateSheetMusicOutput } from '@/ai/flows/generate-sheet-music-from-mood-and-genre';
+import { useUser, useAuth, useFirestore } from '@/firebase';
+import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/button';
+import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { collection, serverTimestamp } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
 
 const SEGMENT_DURATION = 15; // 15 seconds per segment
 
@@ -15,6 +21,12 @@ export default function Home() {
   const [error, setError] = useState<string | undefined>(undefined);
   const [formValues, setFormValues] = useState<Partial<GenerateSheetMusicInput>>({});
   const [generationProgress, setGenerationProgress] = useState(0);
+
+  const { user, isUserLoading } = useUser();
+  const auth = useAuth();
+  const firestore = useFirestore();
+  const router = useRouter();
+  const { toast } = useToast();
 
   const handleFormSubmit = (values: GenerateSheetMusicInput) => {
     setMusicOutput(undefined);
@@ -27,9 +39,7 @@ export default function Home() {
         const [minDurationStr, maxDurationStr] = values.duration!.split('-');
         const minDuration = parseInt(minDurationStr, 10);
         const maxDuration = parseInt(maxDurationStr, 10);
-        // Use the middle of the range as the target duration
         const targetDuration = (minDuration + maxDuration) / 2;
-
         const totalSegments = Math.ceil(targetDuration / SEGMENT_DURATION);
         
         const generationPromises = Array.from({ length: totalSegments }, (_, i) => {
@@ -52,7 +62,6 @@ export default function Home() {
           return;
         }
 
-        // Combine the results
         const finalTitle = results[0].title;
         const combinedParts: { [instrument: string]: any[] } = {};
         const instrumentNames = new Set<string>();
@@ -69,7 +78,7 @@ export default function Home() {
               const newTime = noteTime + segmentOffset;
               combinedParts[part.instrument].push({
                 ...note,
-                time: newTime, // Keep it in seconds for now, MusicPlayer will handle it
+                time: newTime,
               });
             });
           });
@@ -94,19 +103,71 @@ export default function Home() {
     });
   };
 
+  const handleSaveScore = async () => {
+    if (!user || !musicOutput) return;
+
+    try {
+      const postsCollectionRef = collection(firestore, `users/${user.uid}/posts`);
+      await addDocumentNonBlocking(postsCollectionRef, {
+        userId: user.uid,
+        title: musicOutput.title,
+        mood: formValues.mood,
+        genre: formValues.genre,
+        feeling: formValues.feeling,
+        score: JSON.stringify(musicOutput.parts),
+        createdAt: serverTimestamp(),
+      });
+      toast({
+        title: '成功',
+        description: '楽曲を保存しました。',
+      });
+    } catch (e) {
+      toast({
+        variant: 'destructive',
+        title: 'エラー',
+        description: '楽曲の保存に失敗しました。',
+      });
+    }
+  };
+
+  const handleLogout = async () => {
+    await auth.signOut();
+    router.push('/');
+  };
+
   return (
     <main className="flex min-h-screen w-full flex-col items-center justify-center p-4 sm:p-8">
       <div className="w-full max-w-4xl space-y-8">
-        <header className="text-center">
-          <div className="mb-4 inline-flex items-center justify-center rounded-full bg-primary p-4">
-            <Music className="h-10 w-10 text-primary-foreground" />
+        <header className="flex w-full items-center justify-between">
+          <div/>
+          <div className="text-center">
+            <div className="mb-4 inline-flex items-center justify-center rounded-full bg-primary p-4">
+              <Music className="h-10 w-10 text-primary-foreground" />
+            </div>
+            <h1 className="font-headline text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
+              TuneFlow
+            </h1>
+            <p className="mt-4 text-lg text-muted-foreground">
+              気分や好きなジャンルから、あなただけのメロディーを奏でよう。
+            </p>
           </div>
-          <h1 className="font-headline text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
-            TuneFlow
-          </h1>
-          <p className="mt-4 text-lg text-muted-foreground">
-            気分や好きなジャンルから、あなただけのメロディーを奏でよう。
-          </p>
+          <div className="flex items-center gap-2 self-start">
+            {isUserLoading ? (
+              <div className="h-9 w-24 animate-pulse rounded-md bg-muted"></div>
+            ) : user ? (
+              <>
+                <span className="text-sm text-muted-foreground hidden sm:inline">{user.email}</span>
+                <Button variant="ghost" size="icon" onClick={handleLogout} aria-label="ログアウト">
+                  <LogOut />
+                </Button>
+              </>
+            ) : (
+              <Button onClick={() => router.push('/login')}>
+                <LogIn />
+                ログイン
+              </Button>
+            )}
+          </div>
         </header>
 
         <MoodGenreForm 
@@ -119,7 +180,7 @@ export default function Home() {
             <div className="flex flex-col items-center justify-center rounded-lg border bg-card p-8 text-center shadow-sm">
                 <div className="flex items-center space-x-2 text-muted-foreground">
                     <div className="h-5 w-5 animate-spin rounded-full border-b-2 border-primary"></div>
-                    <span>傑作を生成中です... ({generationProgress} / {Math.ceil(((parseInt(formValues.duration!.split('-')[0], 10) + parseInt(formValues.duration!.split('-')[1], 10)) / 2) / SEGMENT_DURATION)})</span>
+                    <span>傑作を生成中です... ({generationProgress} / {formValues.duration ? Math.ceil(((parseInt(formValues.duration.split('-')[0], 10) + parseInt(formValues.duration.split('-')[1], 10)) / 2) / SEGMENT_DURATION) : 1})</span>
                 </div>
             </div>
         )}
@@ -131,7 +192,17 @@ export default function Home() {
         )}
         
         {musicOutput && musicOutput.parts && musicOutput.title && !isPending && (
-          <MusicPlayer title={musicOutput.title} parts={musicOutput.parts} />
+          <>
+            <MusicPlayer title={musicOutput.title} parts={musicOutput.parts} />
+            {user && (
+              <div className="flex justify-center">
+                <Button onClick={handleSaveScore}>
+                  <Download />
+                  この楽曲を保存する
+                </Button>
+              </div>
+            )}
+          </>
         )}
       </div>
     </main>
