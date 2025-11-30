@@ -21,7 +21,7 @@ dependencies:
   flutter_riverpod: ^2.5.1
 
   # Audio
-  just_audio: ^0.9.38
+  audioplayers: ^6.0.0
 
 dev_dependencies:
   flutter_test:

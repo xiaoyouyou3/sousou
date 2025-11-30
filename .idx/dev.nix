@@ -1,8 +1,9 @@
 { pkgs, ... }: {
-  channel = "stable-24.05";
+  channel = "stable-24.05"; # Using Nix channel stable-24.05
   packages = [
     pkgs.flutter
     pkgs.firebase-tools
+    pkgs.google-chrome # Add Google Chrome for web previews
     (pkgs.python311.withPackages (ps: [
       ps.fastapi
       ps.uvicorn
@@ -19,6 +20,7 @@
       "google.gemini-cli-vscode-ide-companion"
       "dart-code.flutter"
       "ms-python.python"
+      "MS-CEINTL.vscode-language-pack-ja"
     ];
     previews = {
       enable = true;
