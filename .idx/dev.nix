@@ -2,52 +2,60 @@
 # see: https://developers.google.com/idx/guides/customize-idx-env
 { pkgs, ... }: {
   # Which nixpkgs channel to use.
-  channel = "stable-24.05"; # or "unstable"
+  channel = "unstable"; # or "unstable"
+
   # Use https://search.nixos.org/packages to find packages
   packages = [
-    # pkgs.go
-    # pkgs.python311
-    # pkgs.python311Packages.pip
-    # pkgs.nodejs_20
-    # pkgs.nodePackages.nodemon
+    pkgs.flutter
+    pkgs.chromium
+    pkgs.cmake
+    pkgs.python3
+    pkgs.pip
   ];
+
   # Sets environment variables in the workspace
-  env = {};
+  env = {
+    # Add the chromium bin to the path so flutter can find it
+    CHROME_EXECUTABLE = "${pkgs.chromium}/bin/chromium-browser";
+  };
+
   idx = {
     # Search for the extensions you want on https://open-vsx.org/ and use "publisher.id"
     extensions = [
-      # "vscodevim.vim"
-      "google.gemini-cli-vscode-ide-companion"
+      "dart-code.dart-code",
+      "dart-code.flutter",
+      "ms-python.python"
     ];
-    # Enable previews
-    previews = {
-      enable = true;
-      previews = {
-        # web = {
-        #   # Example: run "npm run dev" with PORT set to IDX's defined port for previews,
-        #   # and show it in IDX's web preview panel
-        #   command = ["npm" "run" "dev"];
-        #   manager = "web";
-        #   env = {
-        #     # Environment variables to set for your server
-        #     PORT = "$PORT";
-        #   };
-        # };
-      };
-    };
-    # Workspace lifecycle hooks
+
     workspace = {
       # Runs when a workspace is first created
       onCreate = {
-        # Example: install JS dependencies from NPM
-        # npm-install = "npm install";
-        # Open editors for the following files by default, if they exist:
-        default.openFiles = [ ".idx/dev.nix" "README.md" ];
+        # These commands are run in the 'my_app' directory
+        # Enable web support for flutter
+        flutter-enable-web = "cd my_app && flutter config --enable-web";
+        # Get flutter dependencies
+        flutter-pub-get = "cd my_app && flutter pub get";
+        # Install python dependencies
+        pip-install = "pip install -r requirements.txt";
       };
-      # Runs when the workspace is (re)started
-      onStart = {
-        # Example: start a background task to watch and re-build backend code
-        # watch-backend = "npm run watch-backend";
+    };
+
+    # Configures the web preview
+    previews = {
+      enable = true;
+      previews = {
+        # This name is arbitrary, but 'web' is a good default.
+        web = {
+          # Command to run for the preview.
+          # We add 'flutter clean' to ensure a fresh build on every start.
+          command = [ "sh" "-c" "cd my_app && flutter clean && flutter run -d web-server --web-port $PORT" ];
+          # The manager tells IDX how to handle the preview (e.g., 'web' for a browser)
+          manager = "web";
+        };
+        api = {
+          command = [ "sh" "-c" "cd api && uvicorn main:app --host 0.0.0.0 --port $PORT" ];
+          manager = "web";
+        };
       };
     };
   };
