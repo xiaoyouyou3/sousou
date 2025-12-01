@@ -1,41 +1,44 @@
+# To learn more about how to use Nix to configure your environment
+# see: https://firebase.google.com/docs/studio/customize-workspace
 { pkgs, ... }: {
-  channel = "stable-24.05"; # Using Nix channel stable-24.05
+  # Which nixpkgs channel to use.
+  channel = "stable-24.05"; # or "unstable"
+  # Use https://search.nixos.org/packages to find packages
   packages = [
-    pkgs.flutter
-    pkgs.firebase-tools
-    pkgs.google-chrome # Add Google Chrome for web previews
-    (pkgs.python311.withPackages (ps: [
-      ps.fastapi
-      ps.uvicorn
-      ps.python-dotenv
-      ps.google-generativeai
-    ]))
+    pkgs.jdk21
+    pkgs.unzip
+    # Add Python and Pip for the backend
+    pkgs.python3
+    pkgs.pip
   ];
-  env = {
-    # IMPORTANT: Replace with your actual Gemini API Key
-    GEMINI_API_KEY = "YOUR_GEMINI_API_KEY";
-  };
+  # Sets environment variables in the workspace
+  env = {};
   idx = {
+    # Search for the extensions you want on https://open-vsx.org/ and use "publisher.id"
     extensions = [
-      "google.gemini-cli-vscode-ide-companion"
-      "dart-code.flutter"
+      "Dart-Code.flutter"
+      "Dart-Code.dart-code"
+      # Add the Python extension for better editing support
       "ms-python.python"
-      "MS-CEINTL.vscode-language-pack-ja"
     ];
+    workspace = {
+      # Runs when a workspace is first created with this `dev.nix` file
+      onCreate = { };
+      # To run something each time the workspace is (re)started, use the `onStart` hook
+    };
+    # Enable previews and customize configuration
     previews = {
       enable = true;
       previews = {
         web = {
-          command = ["uvicorn" "backend.main:app" "--host" "0.0.0.0" "--port" "$PORT"];
-          manager = "web";
+          command = ["flutter" "run" "--machine" "-d" "web-server" "--web-hostname" "0.0.0.0" "--web-port" "$PORT"];
+          manager = "flutter";
+        };
+        android = {
+          command = ["flutter" "run" "--machine" "-d" "android" "-d" "localhost:5555"];
+          manager = "flutter";
         };
       };
-    };
-    workspace = {
-      onCreate = {
-        default.openFiles = [ ".idx/dev.nix" "README.md" ];
-      };
-      onStart = {};
     };
   };
 }

@@ -18,25 +18,9 @@ class Song {
     required this.theme,
     required this.songUrl,
     required this.createdAt,
-    this.likes = 0,
+    required this.likes,
   });
 
-  // Firestore document to Song object
-  factory Song.fromDocument(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
-    return Song(
-      id: doc.id,
-      userId: data['userId'] ?? '',
-      userDisplayName: data['userDisplayName'] ?? 'Anonymous',
-      userPhotoUrl: data['userPhotoUrl'],
-      theme: data['theme'] ?? '',
-      songUrl: data['songUrl'] ?? '',
-      createdAt: data['createdAt'] ?? Timestamp.now(),
-      likes: data['likes'] ?? 0,
-    );
-  }
-
-  // Song object to map for Firestore
   Map<String, dynamic> toMap() {
     return {
       'userId': userId,
@@ -47,5 +31,18 @@ class Song {
       'createdAt': createdAt,
       'likes': likes,
     };
+  }
+
+  factory Song.fromMap(Map<String, dynamic> map, String documentId) {
+    return Song(
+      id: documentId,
+      userId: map['userId'] ?? '',
+      userDisplayName: map['userDisplayName'] ?? '',
+      userPhotoUrl: map['userPhotoUrl'],
+      theme: map['theme'] ?? '',
+      songUrl: map['songUrl'] ?? '',
+      createdAt: map['createdAt'] ?? Timestamp.now(),
+      likes: map['likes']?.toInt() ?? 0,
+    );
   }
 }

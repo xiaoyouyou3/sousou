@@ -35,7 +35,7 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
           return const Center(child: CircularProgressIndicator());
         }
 
-        final songs = snapshot.data!.docs.map((doc) => Song.fromDocument(doc)).toList();
+        final songs = snapshot.data!.docs.map((doc) => Song.fromMap(doc.data() as Map<String, dynamic>, doc.id)).toList();
 
         if (songs.isEmpty) {
           return const Center(child: Text('No songs yet. Be the first to create one!'));

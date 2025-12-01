@@ -1,36 +1,62 @@
+# Firebase Cloud Functions for Python
+import firebase_admin
+from firebase_functions import https_fn, options
+
+# Generative AI
 import os
 import google.generativeai as genai
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
 
-# Configure the Gemini API key
-genai.configure(api_key=os.environ["GEMINI_API_KEY"])
+# Initialize Firebase Admin SDK
+# This is required to interact with Firebase services.
+firebase_admin.initialize_app()
 
-app = FastAPI()
+# Set the region to 'asia-northeast1' (Tokyo)
+options.set_global_options(region=options.SupportedRegion.ASIA_NORTHEAST1)
 
-class MusicRequest(BaseModel):
-    prompt: str
+# Configure the Gemini API key from environment variables
+# Make sure to set GEMINI_API_KEY in your environment.
+genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 
-@app.post("/generate_music")
-def generate_music(request: MusicRequest):
+@https_fn.on_call()
+def generateMusic(req: https_fn.CallableRequest) -> https_fn.Response:
+    """A callable function that generates music based on a theme using Gemini.
+
+    Args:
+        req: The request object from the client.
+             req.data['theme'] should contain the user's prompt.
+
+    Returns:
+        A response object containing the generated music URL.
+    """
+    theme = req.data.get('theme')
+    if not theme:
+        raise https_fn.HttpsError(
+            code=https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
+            message='The function must be called with "theme" argument.'
+        )
+
     try:
-        # Generate music generation instructions using Gemini
+        # Use the Gemini model to generate a music description
         model = genai.GenerativeModel('gemini-pro')
         response = model.generate_content(
-            f"Generate a detailed music description for a music generation AI. The user prompt is: {request.prompt}. "
+            f"Generate a detailed music description for a music generation AI. The user prompt is: {theme}. "
             f"The description should include genre, mood, instruments, and tempo."
         )
 
-        # In a real application, you would now use this response to call a music generation API.
-        # For this example, we'll just return the generated description.
+        # In a real application, you would use this description to call a music generation API.
+        # For this example, we just log the description and return a dummy URL.
         music_description = response.text
+        print(f"Generated Music Description: {music_description}")
 
-        # Dummy response for now
-        return {"music_description": music_description, "music_url": "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4"}
+        # Placeholder URL for the generated music
+        # This is the same sample URL used in the JS example for consistency
+        music_url = "https://firebasestorage.googleapis.com/v0/b/studio-1331607468-b7dd5.appspot.com/o/sample_song.mp3?alt=media&token=a0e7225b-3b39-4467-8b2b-017838634a05"
+
+        return {"musicUrl": music_url}
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/")
-def read_root():
-    return {"Hello": "World"}
+        print(f"An error occurred: {e}")
+        raise https_fn.HttpsError(
+            code=https_fn.FunctionsErrorCode.INTERNAL,
+            message="An error occurred while generating music."
+        )

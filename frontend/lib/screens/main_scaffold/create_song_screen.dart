@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import '../../models/song.dart';
 
 class CreateSongScreen extends StatefulWidget {
@@ -16,28 +17,57 @@ class _CreateSongScreenState extends State<CreateSongScreen> {
   bool _isPosting = false;
   String? _generatedSongUrl;
 
-  void _generateSong() {
+  Future<void> _generateSong() async {
     if (_themeController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter a theme first!')),
       );
       return;
     }
-    // TODO: Implement AI music generation logic with a backend call
+
     setState(() {
       _isGenerating = true;
+      _generatedSongUrl = null; // Reset previous song
     });
 
-    // Simulate network request
-    Future.delayed(const Duration(seconds: 3), () {
-      setState(() {
-        _isGenerating = false;
-        _generatedSongUrl = "https://firebasestorage.googleapis.com/v0/b/your-project-id.appspot.com/o/sample_song.mp3?alt=media";
+    try {
+      final functions = FirebaseFunctions.instance;
+      final callable = functions.httpsCallable('generateMusic');
+      
+      final response = await callable.call<String>({
+        'theme': _themeController.text.trim(),
       });
-    });
+
+      final songUrl = response.data;
+
+      if (mounted) {
+        setState(() {
+          _generatedSongUrl = songUrl;
+        });
+      }
+
+    } on FirebaseFunctionsException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error generating song: ${e.message}')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('An unexpected error occurred: $e')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isGenerating = false;
+        });
+      }
+    }
   }
 
   Future<void> _postSong() async {
+    if (!mounted) return;
+
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -71,6 +101,7 @@ class _CreateSongScreenState extends State<CreateSongScreen> {
 
       await FirebaseFirestore.instance.collection('songs').add(newSong.toMap());
 
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Song posted successfully!')),
       );
@@ -82,13 +113,16 @@ class _CreateSongScreenState extends State<CreateSongScreen> {
       });
 
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to post song: $e')),
       );
     } finally {
-      setState(() {
-        _isPosting = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isPosting = false;
+        });
+      }
     }
   }
 
@@ -111,6 +145,7 @@ class _CreateSongScreenState extends State<CreateSongScreen> {
               labelText: 'テーマやムード (例：夏の終わりの夕暮れ)',
               border: OutlineInputBorder(),
             ),
+            enabled: !_isGenerating && !_isPosting,
           ),
           const SizedBox(height: 16),
           ElevatedButton.icon(
@@ -124,7 +159,7 @@ class _CreateSongScreenState extends State<CreateSongScreen> {
           const SizedBox(height: 32),
           if (_isGenerating)
             const Center(child: CircularProgressIndicator()),
-          if (_generatedSongUrl != null)
+          if (_generatedSongUrl != null && !_isGenerating)
             Column(
               children: [
                 const Text(
@@ -132,8 +167,9 @@ class _CreateSongScreenState extends State<CreateSongScreen> {
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
                 ),
                 const SizedBox(height: 16),
-                const Icon(Icons.music_note, size: 60),
+                const Icon(Icons.music_note, size: 60, color: Colors.green),
                 const SizedBox(height: 16),
+                // TODO: Add an audio player widget here
                 ElevatedButton.icon(
                   onPressed: _isPosting ? null : _postSong,
                   icon: _isPosting 
@@ -142,6 +178,7 @@ class _CreateSongScreenState extends State<CreateSongScreen> {
                   label: const Text('投稿する'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
                   ),
                 ),
               ],

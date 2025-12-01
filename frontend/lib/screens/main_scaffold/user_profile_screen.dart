@@ -68,7 +68,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                 return const Center(child: CircularProgressIndicator());
               }
 
-              final songs = snapshot.data!.docs.map((doc) => Song.fromDocument(doc)).toList();
+              final songs = snapshot.data!.docs.map((doc) => Song.fromMap(doc.data() as Map<String, dynamic>, doc.id)).toList();
 
               if (songs.isEmpty) {
                 return const Center(child: Text("You haven't posted any songs yet."));

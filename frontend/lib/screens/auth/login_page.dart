@@ -54,6 +54,7 @@ class _SignInViewState extends State<SignInView> {
           password: _passwordController.text.trim(),
         );
       } on FirebaseAuthException catch (e) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(e.message ?? "Sign in failed.")),
         );
@@ -101,10 +102,10 @@ class SignUpView extends StatefulWidget {
   const SignUpView({super.key});
 
   @override
-  State<SignUpView> createState() => _SignUpViewState();
+  State<SignUpView> createState() => _SignUpViewState2();
 }
 
-class _SignUpViewState extends State<SignUpView> {
+class _SignUpViewState2 extends State<SignUpView> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
@@ -118,6 +119,7 @@ class _SignUpViewState extends State<SignUpView> {
           password: _passwordController.text.trim(),
         );
       } on FirebaseAuthException catch (e) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(e.message ?? "Sign up failed.")),
         );
